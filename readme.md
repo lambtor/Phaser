@@ -12,7 +12,7 @@ Project scope / intended features<br>
 <li>display current battery level in setting neopixel row when battery is charging - animated blue?</li>
 <li>support a "warning shot" mode, where a single white led is lit in setting bar, and firing in this mode has beam at its dimmest with sound at its loudest</li>
 <li>for type 2 (16 setting leds), have settings 0-7 light only 1 row from left to right as all green. for settings 8-15, light top row red while also fading bottom row from green to orange.</li>
-<li>mode to set phaser to overload - hold down setting increase button for 3 seconds while setting is already at maximum. play "overload" sound and have all setting LEDs flashing red at a gradually increasing rate over 10 seconds before playing an "overload explosion" sound. after overload routine finishes, reset phaser to lowest setting / all setting leds off.</li>
+<li>ability to set phaser to overload - hold down setting increase button for 3 seconds while setting is already at maximum. play "overload" sound and have all setting LEDs flashing red at a gradually increasing rate over 10 seconds before playing an "overload explosion" sound. after overload routine finishes, reset phaser to lowest setting / all setting leds off.</li>
 <li>ability to activate wesley crusher's "autofire" mode - hold setting decrease button for 3 seconds.  this mode, when active, should have current intensity setting leds flash. this mode should be deactivated when either setting button has been pressed, and setting leds return to solid on to reflect that.</li>
 </ul><br>
 potential functions:<br>
