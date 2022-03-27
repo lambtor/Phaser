@@ -8,7 +8,7 @@ import time
 
 # this script is meant to be used with qt py rp2040
 # this is for stemma speaker board. drop wav file on main directory of board
-# from adafruit_circuitplayground.express import cpx
+# from adafruit_circuitplayground import cp
 
 # OK OMFG circuitpython has a max of 88 characters per line of code
 # -------------------------------------------------------------------------------------
@@ -155,6 +155,7 @@ while True:
             # moAudioPlay.play(moSettingSound)
             # while moAudioPlay.playing:
             #     pass
+            # cp.play_file("adjust.wav")
             SettingDecrease(1)
             # print(mnIntensitySetting)
         else:
@@ -173,6 +174,7 @@ while True:
             # moAudioPlay.play(moSettingSound)
             # while moAudioPlay.playing:
             #     pass
+            # cp.play_file("adjust.wav")
             SettingIncrease(1)
             # print(mnIntensitySetting)
         else:
