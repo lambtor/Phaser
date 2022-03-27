@@ -7,7 +7,7 @@ Project scope / intended features<br>
 3 buttons: 2 for settings and 1 main trigger</li>
 <li>firing sound mapped to button press. keep firing sound playing in loop while trigger held down.  need 2 sound files to do this, with warmup sound separate from active firing.  active firing sound must be loopable.</li>
 <li>have setting buttons cause setting change sound to play</li>
-<li>2 rows of neopixels: 1 for settings and 1 for beam</li>
+<li>2 chains of neopixels: 1 for settings and 1 for beam</li>
 <li>have neopixels for beam flicker slightly during firing</li>
 <li>display current battery level in setting neopixel row when battery is charging - animated blue?</li>
 <li>support a "warning shot" mode, where a single white led is lit in setting bar, and firing in this mode has beam at its dimmest with sound at its loudest</li>
