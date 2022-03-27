@@ -138,11 +138,9 @@ btn1Down = 0
 btn2Down = 0
 
 while True:
-    btn1Down
-    btn2Down
     btn1.update()
     btn2.update()
-    # global mnIntensitySetting
+    # mnIntensitySetting
     # btnTrigger.update()
 
     # handle each button's actions. btn1 needs different between long and short press
