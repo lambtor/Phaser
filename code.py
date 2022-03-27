@@ -17,7 +17,7 @@ mnSettingLEDCount = 17
 mnBeamLEDCount = 1
 # moAudioPlay = audioio.AudioOut(board.A0)
 # moAudioDecoder = audiomp3.WAVDecoder()
-# moSettingSoundFile = open("phSet.wav", "rb")
+# moSettingSoundFile = open("adjust.wav", "rb")
 # moSettingSound = WaveFile(moSettingSoundFile)
 moRGBRed = (128, 0, 0)
 moRGBBlack = (0, 0, 0)
@@ -77,7 +77,7 @@ def SettingIncrease(nAmount):
 # and top bar is full red.
 # need way to set phaser to overload from setting 15 (hold up btn 5 sec?)
 # need way to set phaser to autofire (wesley) from zero (hold down btn 3 sec?)
-# warning shot mode, set 1 LED white & max sound min beam brightness
+# warning shot mode, set 1 LED pink & max sound min beam brightness
 
 def UpdateSetting():
     global mnIntensitySetting
@@ -132,7 +132,7 @@ def DisableOverload():
 # "setting" sound plays on other 2 buttons
 # need to convey charging state via setting LED row(s)
 btn1 = Debouncer(ButtonRead(board.BUTTON))
-btn2 = Debouncer(ButtonRead(board.A3))
+btn2 = Debouncer(ButtonRead(board.RX))
 # btnTrigger = Debouncer(ButtonRead(board.D26))
 btn1Down = 0
 btn2Down = 0
