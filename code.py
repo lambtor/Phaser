@@ -19,6 +19,7 @@ IS_TYPE_ONE_PHASER = False
 SETTINGS_DATA_PIN = board.A1
 BEAM_DATA_PIN = board.A0
 SOUND_OUT_PIN = board.SDA1
+SETTINGSND_FILENAME = "adjust.wav"
 
 # --------
 mnIntensitySetting = 0
@@ -29,9 +30,9 @@ else:
     mnSettingLEDMax = 17
 mnBeamLEDCount = 1
 moAudioPlay = audioio.AudioOut(SOUND_OUT_PIN)
-# moAudioDecoder = audiomp3.WAVDecoder()
-# moSettingSoundFile = open("adjust.wav", "rb")
+# moSettingSoundFile = open(SETTINGSND_FILENAME, "rb")
 # moSettingSound = audiocore.WaveFile(moSettingSoundFile)
+
 moRGBRed = (128, 0, 0)
 moRGBBlack = (0, 0, 0)
 moRGBStrength = 128
