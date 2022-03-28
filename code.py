@@ -1,7 +1,7 @@
 import board
 import digitalio
 import neopixel
-# import audioio
+import audioio
 # from audiocore import WaveFile
 from adafruit_debouncer import Debouncer
 import time
@@ -9,16 +9,29 @@ import time
 # this script is meant to be used with qt py rp2040
 # this is for stemma speaker board. drop wav file on main directory of board
 # from adafruit_circuitplayground import cp
-
 # OK OMFG circuitpython has a max of 88 characters per line of code
 # -------------------------------------------------------------------------------------
+
+# User config settings - these should be set once for program
+# to behave for your hardware
+# true or false here. False means program is for a type 2
+IS_TYPE_ONE_PHASER = False
+SETTINGS_DATA_PIN = board.A1
+BEAM_DATA_PIN = board.A0
+SOUND_OUT_PIN = board.SDA1
+
+# --------
 mnIntensitySetting = 0
-mnSettingLEDCount = 17
+# this needs to be 1 more than the total number of actual setting LEDs you have
+if IS_TYPE_ONE_PHASER:
+    mnSettingLEDMax = 9
+else:
+    mnSettingLEDMax = 17
 mnBeamLEDCount = 1
-# moAudioPlay = audioio.AudioOut(board.A0)
+moAudioPlay = audioio.AudioOut(SOUND_OUT_PIN)
 # moAudioDecoder = audiomp3.WAVDecoder()
 # moSettingSoundFile = open("adjust.wav", "rb")
-# moSettingSound = WaveFile(moSettingSoundFile)
+# moSettingSound = audiocore.WaveFile(moSettingSoundFile)
 moRGBRed = (128, 0, 0)
 moRGBBlack = (0, 0, 0)
 moRGBStrength = 128
@@ -38,7 +51,7 @@ mpinBoardLed.show()
 
 # 6-8 status leds in a single row, or 16 split across 2 rows
 # setting lowest value is 0, max is count of setting LEDs?
-moPixelRow = neopixel.NeoPixel(board.A1, mnSettingLEDCount)
+moPixelRow = neopixel.NeoPixel(SETTINGS_DATA_PIN, mnSettingLEDMax - 1)
 moPixelRow.brightness = 0.3
 moPixelRow.auto_write = False
 moPixelRow.fill(moRGBBlack)
@@ -46,7 +59,9 @@ moPixelRow.show()
 
 # a laser pointer driven by 5v, with 1 neopixel on each side.
 # these are going to be mounted on a custom pcb with a hole to fit pointer
-oBeamSet = neopixel.NeoPixel(board.A0, mnBeamLEDCount, brightness=0.5, auto_write=True)
+moBeamSet = neopixel.NeoPixel(BEAM_DATA_PIN, mnBeamLEDCount)
+moBeamSet.brightness = 0.5
+moBeamSet.auto_write = True
 
 
 def ButtonRead(pin):
@@ -64,9 +79,9 @@ def SettingDecrease(nAmount):
 
 
 def SettingIncrease(nAmount):
-    global mnSettingLEDCount
+    global mnSettingLEDMax
     global mnIntensitySetting
-    if mnIntensitySetting < (mnSettingLEDCount - 1):
+    if mnIntensitySetting < (mnSettingLEDMax - 1):
         mnIntensitySetting += nAmount
     UpdateSetting()
 
@@ -85,12 +100,17 @@ def UpdateSetting():
     global moRGBRed
     global moRGBBlack
     global moRGBStrength
+    global mnSettingLEDMax
     if mnIntensitySetting == 0:
-        moPixelRow.fill(moRGBBlack)
-        moPixelRow.show()
+        # moPixelRow.fill(moRGBBlack)
+        # moPixelRow.show()
+        WarningShotMode()
         return
+    
+    # canon behavior for settings with 8 leds
+    
     # this will be 0 to number of setting LEDs - 1
-    for nIterator in range(mnSettingLEDCount - 1):
+    for nIterator in range(mnSettingLEDMax - 1):
         if nIterator > 7:
             if mnIntensitySetting >= 8:
                 if mnIntensitySetting > nIterator:
@@ -142,6 +162,11 @@ while True:
     btn2.update()
     # mnIntensitySetting
     # btnTrigger.update()
+    
+    # need way to determine if both setting buttons held down for 3 seconds,
+    # to invoke NON-CANON settings interface
+    # while not btn1.value & not btn2.value:
+    # pass
 
     # handle each button's actions. btn1 needs different between long and short press
     if btn1.fell:
@@ -171,6 +196,8 @@ while True:
             # probably want to not do anything if already at max or min setting?
             # or different sound for NO!
             # decrement setting if under 2 sec press
+            # Plays the sample once when loop=False, 
+            # and continuously when loop=True. Does not block
             # moAudioPlay.play(moSettingSound)
             # while moAudioPlay.playing:
             #     pass
