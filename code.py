@@ -2,6 +2,7 @@ import board
 import digitalio
 import neopixel
 import audioio
+import audiocore
 # from audiocore import WaveFile
 from adafruit_debouncer import Debouncer
 import time
@@ -16,10 +17,15 @@ import time
 # to behave for your hardware
 # true or false here. False means program is for a type 2
 IS_TYPE_ONE_PHASER = False
-SETTINGS_DATA_PIN = board.A1
-BEAM_DATA_PIN = board.A0
-SOUND_OUT_PIN = board.SDA1
-SETTINGSND_FILENAME = "adjust.wav"
+SETTING_LED_PIN = board.A2
+BEAM_LED_PIN = board.A1
+# if using stemma speaker board, this MIGHT use pin SDA1?
+# only 3 pins connected when using stemma speaker board, so maybez
+SOUND_OUT_PIN = board.A0
+SETTING_SND_FILE = "adjust.wav"
+BTN_LEFT = board.TX
+BTN_RIGHT = board.RX
+BTN_TRIGGER = board.BUTTON
 
 # --------
 mnIntensitySetting = 0
@@ -30,8 +36,8 @@ else:
     mnSettingLEDMax = 17
 mnBeamLEDCount = 1
 moAudioPlay = audioio.AudioOut(SOUND_OUT_PIN)
-# moSettingSoundFile = open(SETTINGSND_FILENAME, "rb")
-# moSettingSound = audiocore.WaveFile(moSettingSoundFile)
+moSettingSoundFile = open(SETTING_SND_FILE, "rb")
+moSettingSound = audiocore.WaveFile(moSettingSoundFile)
 
 moRGBRed = (128, 0, 0)
 moRGBBlack = (0, 0, 0)
@@ -52,7 +58,7 @@ mpinBoardLed.show()
 
 # 6-8 status leds in a single row, or 16 split across 2 rows
 # setting lowest value is 0, max is count of setting LEDs?
-moPixelRow = neopixel.NeoPixel(SETTINGS_DATA_PIN, mnSettingLEDMax - 1)
+moPixelRow = neopixel.NeoPixel(SETTING_LED_PIN, mnSettingLEDMax - 1)
 moPixelRow.brightness = 0.3
 moPixelRow.auto_write = False
 moPixelRow.fill(moRGBBlack)
@@ -60,7 +66,7 @@ moPixelRow.show()
 
 # a laser pointer driven by 5v, with 1 neopixel on each side.
 # these are going to be mounted on a custom pcb with a hole to fit pointer
-moBeamSet = neopixel.NeoPixel(BEAM_DATA_PIN, mnBeamLEDCount)
+moBeamSet = neopixel.NeoPixel(BEAM_LED_PIN, mnBeamLEDCount)
 moBeamSet.brightness = 0.5
 moBeamSet.auto_write = True
 
@@ -107,9 +113,9 @@ def UpdateSetting():
         # moPixelRow.show()
         WarningShotMode()
         return
-    
+
     # canon behavior for settings with 8 leds
-    
+
     # this will be 0 to number of setting LEDs - 1
     for nIterator in range(mnSettingLEDMax - 1):
         if nIterator > 7:
@@ -152,9 +158,9 @@ def DisableOverload():
 # loop "active" for as long as trigger pressed
 # "setting" sound plays on other 2 buttons
 # need to convey charging state via setting LED row(s)
-btn1 = Debouncer(ButtonRead(board.BUTTON))
-btn2 = Debouncer(ButtonRead(board.RX))
-# btnTrigger = Debouncer(ButtonRead(board.D26))
+btn1 = Debouncer(ButtonRead(BTN_LEFT))
+btn2 = Debouncer(ButtonRead(BTN_RIGHT))
+# btnTrigger = Debouncer(ButtonRead(BTN_TRIGGER))
 btn1Down = 0
 btn2Down = 0
 
@@ -163,7 +169,7 @@ while True:
     btn2.update()
     # mnIntensitySetting
     # btnTrigger.update()
-    
+
     # need way to determine if both setting buttons held down for 3 seconds,
     # to invoke NON-CANON settings interface
     # while not btn1.value & not btn2.value:
@@ -178,9 +184,9 @@ while True:
             DisableWarningShotMode()
             DisableOverload()
             # decrement setting if under 2 sec press
-            # moAudioPlay.play(moSettingSound)
-            # while moAudioPlay.playing:
-            #     pass
+            moAudioPlay.play(moSettingSound)
+            while moAudioPlay.playing:
+                pass
             # cp.play_file("adjust.wav")
             SettingDecrease(1)
             # print(mnIntensitySetting)
@@ -197,11 +203,11 @@ while True:
             # probably want to not do anything if already at max or min setting?
             # or different sound for NO!
             # decrement setting if under 2 sec press
-            # Plays the sample once when loop=False, 
+            # Plays the sample once when loop=False,
             # and continuously when loop=True. Does not block
-            # moAudioPlay.play(moSettingSound)
-            # while moAudioPlay.playing:
-            #     pass
+            moAudioPlay.play(moSettingSound)
+            while moAudioPlay.playing:
+                pass
             # cp.play_file("adjust.wav")
             SettingIncrease(1)
             # print(mnIntensitySetting)
