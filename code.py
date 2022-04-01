@@ -16,6 +16,7 @@ import audiobusio
 # User config settings - these should be set once for program
 # to behave for your hardware
 # true or false here. False means program is for a type 2
+# A3 is for laser itself. TX might need to be used for beam neopixels.
 IS_TYPE_ONE_PHASER = False
 SETTING_LED_PIN = board.A1
 BEAM_LED_PIN = board.A2
@@ -117,6 +118,7 @@ def UpdateSetting():
     global moRGBBlack
     global moRGBStrength
     global mnSettingLEDMax
+    global IS_TYPE_ONE_PHASER
     if mnIntensitySetting == 0:
         # moSettingRow.fill(moRGBBlack)
         # moSettingRow.show()
@@ -124,27 +126,34 @@ def UpdateSetting():
         return
 
     # canon behavior for settings with 8 leds
-
-    # this will be 0 to number of setting LEDs - 1
-    for nIterator in range(mnSettingLEDMax - 1):
-        if nIterator > 7:
-            if mnIntensitySetting >= 8:
-                if mnIntensitySetting > nIterator:
-                    moSettingRow[nIterator] = moRGBRed
-                else:
-                    moSettingRow[nIterator] = moRGBBlack
-        else:
-            if mnIntensitySetting > 8:
-                # if mnIntensitySetting >= nIterator:
-                nRed = int((mnIntensitySetting - 7) * 16)
-                nGreen = int(moRGBStrength - (8 * (mnIntensitySetting - 7)))
-                moSettingRow[nIterator] = (nRed, nGreen, 0)
+    if IS_TYPE_ONE_PHASER:
+        # transition entire row from green to red as it marches from 0-7
+        for nIterator in range(mnSettingLEDMax - 1):
+            # 0 128 0 to 128 0 0
+            nRed = int((mnIntensitySetting - 1) * 16)
+            nGreen = 128 - nRed
+            moSettingRow[nIterator] = (nRed, nGreen, 0)        
+    else:        
+        # this will be 0 to number of setting LEDs - 1
+        for nIterator in range(mnSettingLEDMax - 1):
+            if nIterator > 7:
+                if mnIntensitySetting >= 8:
+                    if mnIntensitySetting > nIterator:
+                        moSettingRow[nIterator] = moRGBRed
+                    else:
+                        moSettingRow[nIterator] = moRGBBlack
             else:
-                if nIterator < mnIntensitySetting:
-                    # set any LED at or below current setting as green
-                    moSettingRow[nIterator] = (0, moRGBStrength, 0)
+                if mnIntensitySetting > 8:
+                    # if mnIntensitySetting >= nIterator:
+                    nRed = int((mnIntensitySetting - 7) * 16)
+                    nGreen = int(moRGBStrength - (8 * (mnIntensitySetting - 7)))
+                    moSettingRow[nIterator] = (nRed, nGreen, 0)
                 else:
-                    moSettingRow[nIterator] = moRGBBlack
+                    if nIterator < mnIntensitySetting:
+                        # set any LED at or below current setting as green
+                        moSettingRow[nIterator] = (0, moRGBStrength, 0)
+                    else:
+                        moSettingRow[nIterator] = moRGBBlack
     moSettingRow.show()
 
 def WarningShotMode():
@@ -169,21 +178,28 @@ def DisableOverload():
 # need to convey charging state via setting LED row(s)
 btn1 = Debouncer(ButtonRead(BTN_LEFT))
 btn2 = Debouncer(ButtonRead(BTN_RIGHT))
-# btnTrigger = Debouncer(ButtonRead(BTN_TRIGGER))
+btnTrigger = Debouncer(ButtonRead(BTN_TRIGGER))
 btn1Down = 0
 btn2Down = 0
+btnTrigger = 0
+# boot this into warning mode initially
 WarningShotMode()
 
+# arduino equivalent of loop()
 while True:
     btn1.update()
     btn2.update()
     # mnIntensitySetting
-    # btnTrigger.update()
+    btnTrigger.update()
 
     # need way to determine if both setting buttons held down for 3 seconds,
     # to invoke NON-CANON settings interface
     # while not btn1.value & not btn2.value:
     # pass
+    if btnTrigger.fell:
+        btnTrigger = time.monotonic()
+    # to determine if ALL have been held down for 2 seconds or more,
+    # check if NOW - MAX(all 3 button DOWN timestamps) > 2
 
     # handle each button's actions. btn1 needs different between long and short press
     if btn1.fell:
