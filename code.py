@@ -19,10 +19,9 @@ import audiobusio
 # A3 is for laser itself. TX might need to be used for beam neopixels.
 IS_TYPE_ONE_PHASER = False
 SETTING_LED_PIN = board.A1
-BEAM_LED_PIN = board.A2
+BEAM_LED_PIN = board.A3
 # if using stemma speaker board, this MIGHT use pin SDA1?
 # only 3 pins connected when using stemma speaker board, so maybez
-SOUND_OUT_PIN = board.A0
 SETTING_SND_FILE = "adjust.wav"
 BTN_LEFT = board.TX
 BTN_RIGHT = board.RX
@@ -30,6 +29,8 @@ BTN_TRIGGER = board.BUTTON
 # BUTTON
 
 # --------
+# current active device settings - do these need to persist across power cycles?
+
 mnIntensitySetting = 0
 # this needs to be 1 more than the total number of actual setting LEDs you have
 if IS_TYPE_ONE_PHASER:
@@ -47,7 +48,6 @@ mnBeamLEDCount = 1
 #        pass
 moI2SAudio = audiobusio.I2SOut(board.SDA, board.SCL, board.SCK)
 
-# moAudioPlay = AudioOut(SOUND_OUT_PIN)
 moSettingSoundFile = open(SETTING_SND_FILE, "rb")
 moSettingSound = audiocore.WaveFile(moSettingSoundFile)
 
@@ -80,6 +80,10 @@ moBeamSet = neopixel.NeoPixel(BEAM_LED_PIN, mnBeamLEDCount)
 moBeamSet.brightness = 0.5
 moBeamSet.auto_write = True
 
+mbIsCharging = False
+mnChargingFrame = 0
+mnChargingFrameDelay = 750
+mnChargingLastTime = 0
 
 def ButtonRead(pin):
     io = digitalio.DigitalInOut(pin)
@@ -119,6 +123,11 @@ def UpdateSetting():
     global moRGBStrength
     global mnSettingLEDMax
     global IS_TYPE_ONE_PHASER
+    global mbIsCharging
+
+    if mbIsCharging:
+        return
+
     if mnIntensitySetting == 0:
         # moSettingRow.fill(moRGBBlack)
         # moSettingRow.show()
@@ -132,8 +141,8 @@ def UpdateSetting():
             # 0 128 0 to 128 0 0
             nRed = int((mnIntensitySetting - 1) * 16)
             nGreen = 128 - nRed
-            moSettingRow[nIterator] = (nRed, nGreen, 0)        
-    else:        
+            moSettingRow[nIterator] = (nRed, nGreen, 0)
+    else:
         # this will be 0 to number of setting LEDs - 1
         for nIterator in range(mnSettingLEDMax - 1):
             if nIterator > 7:
@@ -165,11 +174,52 @@ def DisableWarningShotMode():
     moSettingRow.fill(moRGBBlack)
     moSettingRow.show()
 
-def OVERLOADMODE():
+def RunOverloadMode():
     pass
 
 def DisableOverload():
     pass
+
+def RunChargingMode():
+    global mbIsCharging
+    global mnChargingFrame
+    global mnChargingFrameDelay
+    global moSettingRow
+    global moRGBStrength
+    global mnSettingLEDMax
+    global mnChargingLastTime
+    nFadeFactor = 2
+    nBattPercentage = 70
+    # nMaxFrames = mnSettingLEDMax * 2
+    nCurrentTime = time.monotonic()
+
+    if (nCurrentTime - mnChargingLastTime) < mnChargingFrameDelay:
+        return
+
+    if mbIsCharging:
+        # set brightness for settings chain to 0.4
+        # to allow brightness for animation
+        if moSettingRow.brightness != 0.4:
+            moSettingRow.brightness = 0.4
+
+        if mnChargingFrame > 0 and mnChargingFrame <= mnSettingLEDMax:
+            # draw current "frame" on settings pixels
+            for nIterator in range(mnSettingLEDMax - 1):
+                if nIterator == mnChargingFrame:
+                    moSettingRow[nIterator] = (0, 0, moRGBStrength)
+                elif (mnChargingFrame - nIterator) == 1:
+                    moSettingRow[nIterator] = (0, 0, int(moRGBStrength / nFadeFactor))
+                elif (nIterator - mnChargingFrame) == 1:
+                    moSettingRow[nIterator] = (0, 0, int(moRGBStrength / nFadeFactor))
+                elif nIterator < int(nBattPercentage / (100 / (mnSettingLEDMax - 1))):
+                    nBlueStrength = int((moRGBStrength / nFadeFactor) / nFadeFactor)
+                    moSettingRow[nIterator] = (0, 0, nBlueStrength)
+            moSettingRow.show()
+
+        mnChargingFrame += 1
+    else:
+        if moSettingRow.brightness != 0.1:
+            moSettingRow.brightness = 0.1
 
 # sound effect output via mp3 or wav playback to a speaker.
 # firing sound mapped to trigger press. split between "startup" and "active" sounds
@@ -241,7 +291,9 @@ while True:
             # while moI2SAudio.playing:
             #    pass
             SettingIncrease(1)
-            print(mnIntensitySetting)
+            # print(mnIntensitySetting)
         else:
             if mnIntensitySetting == 15:
-                OVERLOADMODE()
+                RunOverloadMode()
+
+    RunChargingMode()
