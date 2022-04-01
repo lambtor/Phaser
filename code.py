@@ -190,7 +190,7 @@ def RunChargingMode():
     global mnChargingLastTime
     nFadeFactor = 2
     nBattPercentage = 70
-    # nMaxFrames = mnSettingLEDMax * 2
+    nMaxFrames = mnSettingLEDMax * 2
     nCurrentTime = time.monotonic()
 
     if (nCurrentTime - mnChargingLastTime) < mnChargingFrameDelay:
@@ -199,7 +199,7 @@ def RunChargingMode():
     if mbIsCharging:
         # set brightness for settings chain to 0.4
         # to allow brightness for animation
-        if moSettingRow.brightness != 0.4:
+        if (moSettingRow.brightness != 0.4):
             moSettingRow.brightness = 0.4
 
         if mnChargingFrame > 0 and mnChargingFrame <= mnSettingLEDMax:
@@ -217,8 +217,10 @@ def RunChargingMode():
             moSettingRow.show()
 
         mnChargingFrame += 1
+        if (mnChargingFrame > nMaxFrames);
+            mnChargingFrame = 0
     else:
-        if moSettingRow.brightness != 0.1:
+        if (moSettingRow.brightness != 0.1):
             moSettingRow.brightness = 0.1
 
 # sound effect output via mp3 or wav playback to a speaker.
