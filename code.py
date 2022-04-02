@@ -17,7 +17,7 @@ import audiobusio
 # to behave for your hardware
 # true or false here. False means program is for a type 2
 # A3 is for laser itself. TX might need to be used for beam neopixels.
-IS_TYPE_ONE_PHASER = False
+IS_TYPE_ONE_PHASER = True
 SETTING_LED_PIN = board.A1
 BEAM_LED_PIN = board.A3
 # if using stemma speaker board, this MIGHT use pin SDA1?
@@ -82,7 +82,7 @@ moBeamSet.auto_write = True
 
 mbIsCharging = False
 mnChargingFrame = 0
-mnChargingFrameDelay = 0.75
+mnChargingFrameDelay = 0.3
 mnChargingLastTime = 0
 
 def ButtonRead(pin):
@@ -128,6 +128,7 @@ def UpdateSetting():
     if mbIsCharging:
         return
 
+    print(mnIntensitySetting)
     if mnIntensitySetting == 0:
         # moSettingRow.fill(moRGBBlack)
         # moSettingRow.show()
@@ -135,13 +136,16 @@ def UpdateSetting():
         return
 
     # canon behavior for settings with 8 leds
-    if IS_TYPE_ONE_PHASER:
+    if (IS_TYPE_ONE_PHASER is True):
         # transition entire row from green to red as it marches from 0-7
-        for nIterator in range(mnSettingLEDMax - 1):
+        for nIterator2 in range(mnSettingLEDMax - 1):
             # 0 128 0 to 128 0 0
-            nRed = int((mnIntensitySetting - 1) * 16)
-            nGreen = 128 - nRed
-            moSettingRow[nIterator] = (nRed, nGreen, 0)
+            if nIterator2 < mnIntensitySetting:
+                nRed = int((mnIntensitySetting - 1) * 16)
+                nGreen = 128 - nRed
+                moSettingRow[nIterator2] = (nRed, nGreen, 0)
+            else:
+                moSettingRow[nIterator2] = moRGBBlack
     else:
         # this will be 0 to number of setting LEDs - 1
         for nIterator in range(mnSettingLEDMax - 1):
@@ -166,11 +170,13 @@ def UpdateSetting():
     moSettingRow.show()
 
 def WarningShotMode():
+    global moSettingRow
     moSettingRow.fill(moRGBBlack)
     moSettingRow[0] = (255, 64, 64)
     moSettingRow.show()
 
 def DisableWarningShotMode():
+    global moSettingRow
     moSettingRow.fill(moRGBBlack)
     moSettingRow.show()
 
@@ -179,6 +185,13 @@ def RunOverloadMode():
 
 def DisableOverload():
     pass
+    
+def DisableCharging():
+    global moSettingRow
+    moSettingRow.brightness = 0.1
+    moSettingRow.fill(moRGBBlack)
+    moSettingRow.show()
+    UpdateSetting()
 
 def RunChargingMode():
     global mbIsCharging
@@ -188,12 +201,12 @@ def RunChargingMode():
     global moRGBStrength
     global mnSettingLEDMax
     global mnChargingLastTime
-    nFadeFactor = 2
+    nFade = 2
     nBattPercentage = 70
-    nMaxFrames = mnSettingLEDMax * 2
+    nMaxFrames = mnSettingLEDMax + 4
     nCurrentTime = time.monotonic()
 
-    if (nCurrentTime - mnChargingLastTime) < mnChargingFrameDelay:
+    if not mbIsCharging or ((nCurrentTime - mnChargingLastTime) < mnChargingFrameDelay):
         return
 
     if mbIsCharging:
@@ -202,21 +215,26 @@ def RunChargingMode():
         if (moSettingRow.brightness != 0.4):
             moSettingRow.brightness = 0.4
 
-        if mnChargingFrame > 0 and mnChargingFrame <= mnSettingLEDMax:
+        if mnChargingFrame >= 0 and mnChargingFrame <= mnSettingLEDMax:
             # draw current "frame" on settings pixels
-            for nIterator in range(mnSettingLEDMax - 1):
-                if nIterator == mnChargingFrame:
-                    moSettingRow[nIterator] = (0, 0, moRGBStrength)
-                elif (mnChargingFrame - nIterator) == 1:
-                    moSettingRow[nIterator] = (0, 0, int(moRGBStrength / nFadeFactor))
-                elif (nIterator - mnChargingFrame) == 1:
-                    moSettingRow[nIterator] = (0, 0, int(moRGBStrength / nFadeFactor))
-                elif nIterator < int(nBattPercentage / (100 / (mnSettingLEDMax - 1))):
-                    nBlueStrength = int((moRGBStrength / nFadeFactor) / nFadeFactor)
-                    moSettingRow[nIterator] = (0, 0, nBlueStrength)
+            for nIterator3 in range(mnSettingLEDMax - 1):
+                nTemp = int(nBattPercentage / (100 / (mnSettingLEDMax - 1)))
+                if nIterator3 == mnChargingFrame:                    
+                    if nIterator3 <= nTemp:
+                        moSettingRow[nIterator3] = (0, 0, moRGBStrength)
+                # elif (mnChargingFrame - nIterator3) == 1:
+                #    if nIterator3 <= nTemp:
+                #        moSettingRow[nIterator3] = (0, 0, int(moRGBStrength / nFade))
+                # elif (nIterator3 - mnChargingFrame) == 1:
+                #    if nIterator3 <= nTemp:
+                #        moSettingRow[nIterator3] = (0, 0, int(moRGBStrength / nFade))
+                elif nIterator3 <= int(nBattPercentage / (100 / (mnSettingLEDMax - 1))):
+                    nBlueStrength = int((moRGBStrength / nFade) / nFade)
+                    moSettingRow[nIterator3] = (0, 0, nBlueStrength)
             moSettingRow.show()
-
+        mnChargingLastTime = nCurrentTime    
         mnChargingFrame += 1
+        print(mnChargingFrame)
         if (mnChargingFrame > nMaxFrames):
             mnChargingFrame = 0
     else:
@@ -233,7 +251,7 @@ btn2 = Debouncer(ButtonRead(BTN_RIGHT))
 btnTrigger = Debouncer(ButtonRead(BTN_TRIGGER))
 btn1Down = 0
 btn2Down = 0
-btnTrigger = 0
+btnTriggerDown = 0
 # boot this into warning mode initially
 WarningShotMode()
 
@@ -252,10 +270,13 @@ while True:
         btnTriggerDown = time.monotonic()
     if btnTrigger.rose:
         btnTriggerTime = time.monotonic() - btnTriggerDown
-        if btnTriggerTime < 2:
+        if btnTriggerTime > 2:
             mbIsCharging = True
+            print(mbIsCharging, " charging")
         else:
             mbIsCharging = False
+            DisableCharging()
+            print(mbIsCharging, " charging")
     # to determine if ALL have been held down for 2 seconds or more,
     # check if NOW - MAX(all 3 button DOWN timestamps) > 2
 
@@ -265,7 +286,7 @@ while True:
     if btn1.rose:
         nBtn1DownTime = time.monotonic() - btn1Down
         if nBtn1DownTime < 2:
-            DisableWarningShotMode()
+            # DisableWarningShotMode()
             DisableOverload()
             # decrement setting if under 2 sec press
             # moAudioPlay.play(moSettingSound)
@@ -276,10 +297,9 @@ while True:
             #    pass
             SettingDecrease(1)
             # print(mnIntensitySetting)
-        else:
-            pass
-            # if mnIntensitySetting == 0:
-            #    WarningShotMode()
+        # else:
+        #    if mnIntensitySetting == 0:
+        #        WarningShotMode()
 
     if btn2.fell:
         btn2Down = time.monotonic()
@@ -303,5 +323,4 @@ while True:
         else:
             if mnIntensitySetting == 15:
                 RunOverloadMode()
-
     RunChargingMode()
