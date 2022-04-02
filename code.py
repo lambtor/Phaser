@@ -82,7 +82,7 @@ moBeamSet.auto_write = True
 
 mbIsCharging = False
 mnChargingFrame = 0
-mnChargingFrameDelay = 750
+mnChargingFrameDelay = 0.75
 mnChargingLastTime = 0
 
 def ButtonRead(pin):
@@ -217,11 +217,11 @@ def RunChargingMode():
             moSettingRow.show()
 
         mnChargingFrame += 1
-        if (mnChargingFrame > nMaxFrames);
+        if (mnChargingFrame > nMaxFrames):
             mnChargingFrame = 0
     else:
         if (moSettingRow.brightness != 0.1):
-            moSettingRow.brightness = 0.1
+            moSettingRow.brightness = 0.1            
 
 # sound effect output via mp3 or wav playback to a speaker.
 # firing sound mapped to trigger press. split between "startup" and "active" sounds
@@ -249,7 +249,13 @@ while True:
     # while not btn1.value & not btn2.value:
     # pass
     if btnTrigger.fell:
-        btnTrigger = time.monotonic()
+        btnTriggerDown = time.monotonic()
+    if btnTrigger.rose:
+        btnTriggerTime = time.monotonic() - btnTriggerDown
+        if btnTriggerTime < 2:
+            mbIsCharging = True
+        else:
+            mbIsCharging = False
     # to determine if ALL have been held down for 2 seconds or more,
     # check if NOW - MAX(all 3 button DOWN timestamps) > 2
 
