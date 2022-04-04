@@ -11,10 +11,17 @@ Project scope / intended features<br>
 <li>have neopixels for beam flicker slightly during firing</li>
 <li>display current battery level in setting neopixel row when battery is charging - animated blue?</li>
 <li>support a "warning shot" mode, where a single white led is lit in setting bar, and firing in this mode has beam at its dimmest with sound at its loudest</li>
-<li>for type 2 (16 setting leds), have settings 0-7 light only 1 row from left to right as all green. for settings 8-15, light top row red while also fading bottom row from green to orange.</li>
+<li>for type 2 (16 setting leds), have settings 1-8 light only 1 row from left to right as all green. for settings 9-16, light top row red while also fading bottom row from green to orange.<br>
+	for type 1 (8 setting leds), have settings 1-8 fade from green (at 1) to red (at 8).</li>
 <li>ability to set phaser to overload - hold down setting increase button for 3 seconds while setting is already at maximum. play "overload" sound and have all setting LEDs flashing red at a gradually increasing rate over 10 seconds before playing an "overload explosion" sound. after overload routine finishes, reset phaser to lowest setting / all setting leds off. any button press during "overload" mode should cancel it.</li>
-<li>ability to activate wesley crusher's "autofire" mode - hold setting decrease button for 3 seconds.  this mode, when active, should have current intensity setting leds flash. this mode should be deactivated when either setting button has been pressed, and setting leds return to solid on to reflect that.</li>
+<li>ability to activate wesley crusher's "autofire" mode - hold setting decrease button for 3 seconds.  this mode, when active, should have current intensity setting leds flash. this mode should be deactivated when either setting button has been pressed, and setting leds should return to solid on to reflect that.</li>
 </ul><br>
 potential functions:<br>
-"grime washing mode"?  not sure what this would be.<br>
-method of changing phaser from "left handed" to "right handed" mode.  this would change how setting buttons behave and order of setting led pattern
+"grime washing mode"?  not sure what this would be, or how it could be displayed in settings bar.<br>
+method of changing phaser from "left handed" to "right handed" mode.  this would change how setting buttons behave and order of setting led pattern<br>
+<br>
+potential non-canon settings: (need to figure out if these should persist between full powercycles)<br>
+beam brightness - including an "off" option, if anybody uses this for filming and wanted to add beam in post prod?<br>
+setting led row brightness<br>
+sound effect volume level<br>
+reset all settings to default<br>
