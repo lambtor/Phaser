@@ -23,10 +23,14 @@ BEAM_LED_PIN = board.A3
 # if using stemma speaker board, this MIGHT use pin SDA1?
 # only 3 pins connected when using stemma speaker board, so maybez
 SETTING_SND_FILE = "adjust.wav"
+FIRELOOP_SND_FILE = "adjust.wav"
+FIREWARM_SND_FILE = "adjust.wav"
 BTN_LEFT = board.TX
 BTN_RIGHT = board.RX
 BTN_TRIGGER = board.BUTTON
-# BUTTON
+# number from 0-1 (you'd never want 1, as that'd be ALWAYS OFF
+BEAM_FLICKER_RATE = 0.2
+BEAM_FPS = 60
 
 # --------
 # current active device settings - do these need to persist across power cycles?
@@ -49,7 +53,13 @@ mnBeamLEDCount = 1
 moI2SAudio = audiobusio.I2SOut(board.SDA, board.SCL, board.SCK)
 
 moSettingSoundFile = open(SETTING_SND_FILE, "rb")
-moSettingSound = audiocore.WaveFile(moSettingSoundFile)
+moFiringLoopFile = open(FIRELOOP_SND_FILE, "rb")
+moFireWarmFile = open(FIREWARM_SND_FILE, "rb")
+moSettingSnd = audiocore.WaveFile(moSettingSoundFile)
+moFireLoopSnd = audiocore.WaveFile(moFiringLoopFile)
+moFireWarmSnd = audiocore.WaveFile(moFireWarmFile)
+mnFireWarmSndLength = 1.3
+mnFireWarmStep = 0
 
 moRGBRed = (128, 0, 0)
 moRGBBlack = (0, 0, 0)
@@ -58,7 +68,6 @@ moRGBStrength = 128
 # all comments are done via pound sign,
 # and MUST have a space immediately after the pound sign - this is some vb6 shit.
 # gtfo with your variable types! this is PYTHON! everything's interpolated!
-# you're probably gonna want to use named pins for any declarations
 # long-term: left handed mode that can be toggled on/off via both setting button press?
 # mpinBoardLed = digitalio.DigitalInOut(board.LED)
 # board.BUTTON
@@ -66,7 +75,7 @@ mpinBoardLed = neopixel.NeoPixel(board.NEOPIXEL, 1, brightness=0.3, auto_write=T
 # mpinBoardLed = neopixel.NeoPixel(board.NEOPIXEL, 1)
 # mpinBoardLed.brightness = 0.3
 mpinBoardLed.fill((112, 128, 0))
-mpinBoardLed.show()
+mpinBoardLed.write()
 
 # 6-8 status leds in a single row, or 16 split across 2 rows
 # setting lowest value is 0, max is count of setting LEDs?
@@ -76,14 +85,22 @@ moSettingRow.auto_write = False
 
 # a laser pointer driven by 5v, with 1 neopixel on each side.
 # these are going to be mounted on a custom pcb with a hole to fit pointer
-moBeamSet = neopixel.NeoPixel(BEAM_LED_PIN, mnBeamLEDCount)
-moBeamSet.brightness = 0.5
-moBeamSet.auto_write = True
+moBeamRow = neopixel.NeoPixel(BEAM_LED_PIN, mnBeamLEDCount)
+moBeamRow.brightness = 0.5
+moBeamRow.auto_write = False
 
+# time function returns everything as seconds.
+# all comparisons for delay less than 1 second need to use decimals
 mbIsCharging = False
+mbInMenu = False
+mbIsFiring = False
+mbIsWarming = False
 mnChargingFrame = 0
-mnChargingFrameDelay = 0.3
+mnChargingFrameDelay = 0.25
 mnChargingLastTime = 0
+mnLastBattCheck = 0
+mnBattCheckInterval = 1
+mnFiringLastTime = 0
 
 def ButtonRead(pin):
     io = digitalio.DigitalInOut(pin)
@@ -124,16 +141,22 @@ def UpdateSetting():
     global mnSettingLEDMax
     global IS_TYPE_ONE_PHASER
     global mbIsCharging
+    global mbInMenu
 
-    if mbIsCharging:
+    if mbIsCharging or mbInMenu:
         return
 
     print(mnIntensitySetting)
     if mnIntensitySetting == 0:
         # moSettingRow.fill(moRGBBlack)
-        # moSettingRow.show()
+        # moSettingRow.write()
         WarningShotMode()
         return
+
+    # to-do: set intensity according to user-selected max brightness
+    # update beam brightness to reflect intensity setting
+    moBeamRow.brightness = (1 / (mnSettingLEDMax - mnIntensitySetting))
+    moBeamRow.write()
 
     # canon behavior for settings with 8 leds
     if (IS_TYPE_ONE_PHASER is True):
@@ -167,30 +190,79 @@ def UpdateSetting():
                         moSettingRow[nIterator] = (0, moRGBStrength, 0)
                     else:
                         moSettingRow[nIterator] = moRGBBlack
-    moSettingRow.show()
+    moSettingRow.write()
 
 def WarningShotMode():
     global moSettingRow
     moSettingRow.fill(moRGBBlack)
     moSettingRow[0] = (255, 64, 64)
-    moSettingRow.show()
+    moSettingRow.write()
 
 def DisableWarningShotMode():
     global moSettingRow
     moSettingRow.fill(moRGBBlack)
-    moSettingRow.show()
+    moSettingRow.write()
+
+def StartFiring():
+    global mbIsFiring
+    global moBeamRow
+    global mbIsWarming
+    global mnFireWarmStep
+    global mnFiringLastTime
+    global mnFireWarmSndLength
+    nFadeSteps = 4
+    # kick out if it's too soon to step to next frame
+    if (time.monotonic() - mnFiringLastTime) < (mnFireWarmSndLength / nFadeSteps):
+        return
+    # fade from black up to full red - this is non-blocking
+    if mnFireWarmStep < nFadeSteps:
+        oRedColor = (int(255 / (nFadeSteps - mnFireWarmStep)), 0, 0)
+        moBeamRow.fill(oRedColor)
+        moBeamRow.write()
+        mnFireWarmStep += 1
+    elif mnFireWarmStep == nFadeSteps:
+        oRedColor = (255, 0, 0)
+        moBeamRow.fill(oRedColor)
+        moBeamRow.write()
+        mnFireWarmStep += 1
+    # warming over, set isFiring flag on to hand over to that animation
+    if mnFireWarmStep > nFadeSteps:
+        mbIsWarming = False
+        mnFireWarmStep = 0
+        mbIsFiring = True
+
+def RunFiring():
+    global mbIsFiring
+    global BEAM_FPS
+    global BEAM_FLICKER_RATE
+    # depending on "refresh rate" and "flicker rate" values at top,
+    # occasionally turn off beam neopixels uniformly?
+    if not mbIsFiring or mbInMenu is True or mbIsCharging is True:
+        return
+
+def StopFiring():
+    global moBeamRow
+    global mbIsFiring
+    moBeamRow.fill(moRGBBlack)
+    moBeamRow.write()
+    mbIsFiring = False
 
 def RunOverloadMode():
     pass
 
 def DisableOverload():
     pass
-    
+
+def CheckCharging():
+    # if charging mode is active, run charging mode
+    global mbIsCharging
+    pass
+
 def DisableCharging():
     global moSettingRow
     moSettingRow.brightness = 0.1
     moSettingRow.fill(moRGBBlack)
-    moSettingRow.show()
+    moSettingRow.write()
     UpdateSetting()
 
 def RunChargingMode():
@@ -201,6 +273,7 @@ def RunChargingMode():
     global moRGBStrength
     global mnSettingLEDMax
     global mnChargingLastTime
+    global IS_TYPE_ONE_PHASER
     nFade = 2
     nBattPercentage = 70
     nMaxFrames = mnSettingLEDMax + 4
@@ -219,9 +292,11 @@ def RunChargingMode():
             # draw current "frame" on settings pixels
             for nIterator3 in range(mnSettingLEDMax - 1):
                 nTemp = int(nBattPercentage / (100 / (mnSettingLEDMax - 1)))
-                if nIterator3 == mnChargingFrame:                    
+                if nIterator3 == mnChargingFrame:
                     if nIterator3 <= nTemp:
                         moSettingRow[nIterator3] = (0, 0, moRGBStrength)
+                        if not IS_TYPE_ONE_PHASER:
+                            moSettingRow[nIterator3 + 8] = (0, 0, moRGBStrength)
                 # elif (mnChargingFrame - nIterator3) == 1:
                 #    if nIterator3 <= nTemp:
                 #        moSettingRow[nIterator3] = (0, 0, int(moRGBStrength / nFade))
@@ -231,15 +306,14 @@ def RunChargingMode():
                 elif nIterator3 <= int(nBattPercentage / (100 / (mnSettingLEDMax - 1))):
                     nBlueStrength = int((moRGBStrength / nFade) / nFade)
                     moSettingRow[nIterator3] = (0, 0, nBlueStrength)
-            moSettingRow.show()
-        mnChargingLastTime = nCurrentTime    
+                    if not IS_TYPE_ONE_PHASER:
+                        moSettingRow[nIterator3 + 8] = (0, 0, moRGBStrength)
+            moSettingRow.write()
+        mnChargingLastTime = nCurrentTime
         mnChargingFrame += 1
         print(mnChargingFrame)
         if (mnChargingFrame > nMaxFrames):
             mnChargingFrame = 0
-    else:
-        if (moSettingRow.brightness != 0.1):
-            moSettingRow.brightness = 0.1            
 
 # sound effect output via mp3 or wav playback to a speaker.
 # firing sound mapped to trigger press. split between "startup" and "active" sounds
@@ -259,26 +333,40 @@ WarningShotMode()
 while True:
     btn1.update()
     btn2.update()
-    # mnIntensitySetting
     btnTrigger.update()
 
+    # run battery check once per second to determine if charging
+    # if (time.monotonic() - mnLastBattCheck) > mnBattCheckInterval:
+    #    CheckCharging()
     # need way to determine if both setting buttons held down for 3 seconds,
     # to invoke NON-CANON settings interface
     # while not btn1.value & not btn2.value:
     # pass
+    # eventually need way to keep trigger from causing
+    # firing if in a setting adj menu
     if btnTrigger.fell:
         btnTriggerDown = time.monotonic()
+        # start firing sound, warmup beam leds
+        if not mbIsCharging and not mbInMenu:
+            moI2SAudio.play(moFireWarmSnd)
+            while moI2SAudio.playing():
+                StartFiring()
     if btnTrigger.rose:
         btnTriggerTime = time.monotonic() - btnTriggerDown
+        if not mbInMenu:
+            StopFiring()
+        # stop firing sound
         if btnTriggerTime > 2:
             mbIsCharging = True
-            print(mbIsCharging, " charging")
+            # print(mbIsCharging, " charging")
         else:
             mbIsCharging = False
             DisableCharging()
-            print(mbIsCharging, " charging")
-    # to determine if ALL have been held down for 2 seconds or more,
-    # check if NOW - MAX(all 3 button DOWN timestamps) > 2
+            # print(mbIsCharging, " charging")
+
+    if mbIsWarming is True:
+        StartFiring()
+    RunFiring()
 
     # handle each button's actions. btn1 needs different between long and short press
     if btn1.fell:
@@ -289,10 +377,10 @@ while True:
             # DisableWarningShotMode()
             DisableOverload()
             # decrement setting if under 2 sec press
-            # moAudioPlay.play(moSettingSound)
+            # moAudioPlay.play(moSettingSnd)
             # while moAudioPlay.playing:
             #   pass
-            moI2SAudio.play(moSettingSound)
+            moI2SAudio.play(moSettingSnd)
             # while moI2SAudio.playing():
             #    pass
             SettingDecrease(1)
@@ -308,19 +396,21 @@ while True:
         if nBtn2DownTime < 2:
             DisableOverload()
             # probably want to not do anything if already at max or min setting?
-            # or different sound for NO!
+            # or different sound for NO?
             # decrement setting if under 2 sec press
             # Plays the sample once when loop=False,
             # and continuously when loop=True. Does not block
-            # moAudioPlay.play(moSettingSound)
+            # moAudioPlay.play(moSettingSnd)
             # while moAudioPlay.playing:
             #    pass
-            moI2SAudio.play(moSettingSound)
+            moI2SAudio.play(moSettingSnd)
             # while moI2SAudio.playing:
             #    pass
             SettingIncrease(1)
             # print(mnIntensitySetting)
         else:
-            if mnIntensitySetting == 15:
+            if not IS_TYPE_ONE_PHASER and mnIntensitySetting == 15:
+                RunOverloadMode()
+            elif IS_TYPE_ONE_PHASER is True and mnIntensitySetting == 8:
                 RunOverloadMode()
     RunChargingMode()
