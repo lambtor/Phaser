@@ -19,12 +19,12 @@ import audiobusio
 # A3 is for laser itself. TX might need to be used for beam neopixels.
 IS_TYPE_ONE_PHASER = True
 SETTING_LED_PIN = board.A1
-BEAM_LED_PIN = board.A3
+BEAM_LED_PIN = board.A0
 # if using stemma speaker board, this MIGHT use pin SDA1?
 # only 3 pins connected when using stemma speaker board, so maybez
 SETTING_SND_FILE = "adjust.wav"
-FIRELOOP_SND_FILE = "adjust.wav"
-FIREWARM_SND_FILE = "adjust.wav"
+FIRELOOP_SND_FILE = "firingloop.wav"
+FIREWARM_SND_FILE = "warmup.wav"
 BTN_LEFT = board.TX
 BTN_RIGHT = board.RX
 BTN_TRIGGER = board.BUTTON
@@ -41,7 +41,7 @@ if IS_TYPE_ONE_PHASER:
     mnSettingLEDMax = 9
 else:
     mnSettingLEDMax = 17
-mnBeamLEDCount = 1
+mnBeamLEDCount = 4
 
 # try:
 #    from audioio import AudioOut
@@ -58,7 +58,7 @@ moFireWarmFile = open(FIREWARM_SND_FILE, "rb")
 moSettingSnd = audiocore.WaveFile(moSettingSoundFile)
 moFireLoopSnd = audiocore.WaveFile(moFiringLoopFile)
 moFireWarmSnd = audiocore.WaveFile(moFireWarmFile)
-mnFireWarmSndLength = 1.3
+mnFireWarmSndLength = 2.0
 mnFireWarmStep = 0
 
 moRGBRed = (128, 0, 0)
@@ -203,7 +203,7 @@ def DisableWarningShotMode():
     moSettingRow.fill(moRGBBlack)
     moSettingRow.write()
 
-def StartFiring():
+def StartFiring(mbIsInit):
     global mbIsFiring
     global moBeamRow
     global mbIsWarming
@@ -211,6 +211,8 @@ def StartFiring():
     global mnFiringLastTime
     global mnFireWarmSndLength
     nFadeSteps = 4
+    if not mbIsWarming and not mbIsInit:
+        return
     # kick out if it's too soon to step to next frame
     if (time.monotonic() - mnFiringLastTime) < (mnFireWarmSndLength / nFadeSteps):
         return
@@ -243,9 +245,11 @@ def RunFiring():
 def StopFiring():
     global moBeamRow
     global mbIsFiring
+    global moI2SAudio
     moBeamRow.fill(moRGBBlack)
     moBeamRow.write()
     mbIsFiring = False
+    moI2SAudio.stop()
 
 def RunOverloadMode():
     pass
@@ -349,23 +353,23 @@ while True:
         # start firing sound, warmup beam leds
         if not mbIsCharging and not mbInMenu:
             moI2SAudio.play(moFireWarmSnd)
-            while moI2SAudio.playing():
-                StartFiring()
+            # while moI2SAudio.playing:
+            StartFiring(True)
     if btnTrigger.rose:
         btnTriggerTime = time.monotonic() - btnTriggerDown
         if not mbInMenu:
             StopFiring()
         # stop firing sound
-        if btnTriggerTime > 2:
-            mbIsCharging = True
+        # if btnTriggerTime > 2:
+        #    mbIsCharging = True
             # print(mbIsCharging, " charging")
-        else:
-            mbIsCharging = False
-            DisableCharging()
+        # else:
+        #    mbIsCharging = False
+        #    DisableCharging()
             # print(mbIsCharging, " charging")
 
     if mbIsWarming is True:
-        StartFiring()
+        StartFiring(False)
     RunFiring()
 
     # handle each button's actions. btn1 needs different between long and short press
