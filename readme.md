@@ -25,3 +25,5 @@ beam brightness - including an "off" option, if anybody uses this for filming an
 setting led row brightness<br>
 sound effect volume level<br>
 reset all settings to default<br>
+<br>References:<br>
+https://learn.adafruit.com/mp3-playback-rp2040
