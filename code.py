@@ -41,7 +41,7 @@ if IS_TYPE_ONE_PHASER:
     mnSettingLEDMax = 9
 else:
     mnSettingLEDMax = 17
-mnBeamLEDCount = 4
+mnBeamLEDCount = 7
 
 # try:
 #    from audioio import AudioOut
@@ -50,7 +50,7 @@ mnBeamLEDCount = 4
 #        from audiopwmio import PWMAudioOut as AudioOut
 #    except ImportError:
 #        pass
-moI2SAudio = audiobusio.I2SOut(board.SDA, board.SCL, board.SCK)
+moI2SAudio = audiobusio.I2SOut(board.SDA1, board.SCL1, board.SCK)
 
 moSettingSoundFile = open(SETTING_SND_FILE, "rb")
 moFiringLoopFile = open(FIRELOOP_SND_FILE, "rb")
@@ -58,7 +58,8 @@ moFireWarmFile = open(FIREWARM_SND_FILE, "rb")
 moSettingSnd = audiocore.WaveFile(moSettingSoundFile)
 moFireLoopSnd = audiocore.WaveFile(moFiringLoopFile)
 moFireWarmSnd = audiocore.WaveFile(moFireWarmFile)
-mnFireWarmSndLength = 2.0
+mnFireWarmSndLength = 1.25
+mdFireLEDLength = 0.18
 mnFireWarmStep = 0
 
 moRGBRed = (128, 0, 0)
@@ -101,6 +102,7 @@ mnChargingLastTime = 0
 mnLastBattCheck = 0
 mnBattCheckInterval = 1
 mnFiringLastTime = 0
+mdecStartFiringTime = 0.0
 
 def ButtonRead(pin):
     io = digitalio.DigitalInOut(pin)
@@ -203,7 +205,7 @@ def DisableWarningShotMode():
     moSettingRow.fill(moRGBBlack)
     moSettingRow.write()
 
-def StartFiring(mbIsInit):
+def StartFiring(bIsInit):
     global mbIsFiring
     global moBeamRow
     global mbIsWarming
@@ -211,44 +213,60 @@ def StartFiring(mbIsInit):
     global mnFiringLastTime
     global mnFireWarmSndLength
     nFadeSteps = 4
-    if not mbIsWarming and not mbIsInit:
+     
+    # need to fade in beam WAY faster than warmup sound
+    if not mbIsWarming and not bIsInit:
         return
+    if bIsInit is True:
+        mbIsWarming = True
     # kick out if it's too soon to step to next frame
-    if (time.monotonic() - mnFiringLastTime) < (mnFireWarmSndLength / nFadeSteps):
+    if (time.monotonic() - mnFiringLastTime) < (mdFireLEDLength / nFadeSteps):
         return
     # fade from black up to full red - this is non-blocking
-    if mnFireWarmStep < nFadeSteps:
+    if (mnFireWarmStep < nFadeSteps):
         oRedColor = (int(255 / (nFadeSteps - mnFireWarmStep)), 0, 0)
         moBeamRow.fill(oRedColor)
-        moBeamRow.write()
+        moBeamRow.write()        
+        mnFiringLastTime = time.monotonic()
+        print(mnFireWarmStep, " | ", oRedColor)
         mnFireWarmStep += 1
-    elif mnFireWarmStep == nFadeSteps:
-        oRedColor = (255, 0, 0)
-        moBeamRow.fill(oRedColor)
-        moBeamRow.write()
-        mnFireWarmStep += 1
+    # elif mnFireWarmStep == nFadeSteps:
+    #    oRedColor = (255, 0, 0)
+    #    moBeamRow.fill(oRedColor)
+    #    moBeamRow.write()
+    #    print(mnFireWarmStep, " | ", oRedColor)
+    #    mnFireWarmStep += 1
+    #    mnFiringLastTime = time.monotonic()
+    decTimeRef = time.monotonic() - mdecStartFiringTime
     # warming over, set isFiring flag on to hand over to that animation
-    if mnFireWarmStep > nFadeSteps:
+    if mnFireWarmStep >= nFadeSteps and (decTimeRef > mnFireWarmSndLength):
+        print("ended warmup")
         mbIsWarming = False
         mnFireWarmStep = 0
         mbIsFiring = True
+        RunFiring(True)
 
-def RunFiring():
+def RunFiring(bInitLoop):
     global mbIsFiring
     global BEAM_FPS
     global BEAM_FLICKER_RATE
+    global moI2SAudio
     # depending on "refresh rate" and "flicker rate" values at top,
     # occasionally turn off beam neopixels uniformly?
     if not mbIsFiring or mbInMenu is True or mbIsCharging is True:
         return
+    if (bInitLoop is True):
+        moI2SAudio.play(moFireLoopSnd, loop=True)        
 
 def StopFiring():
     global moBeamRow
     global mbIsFiring
+    global mbIsWarming
     global moI2SAudio
     moBeamRow.fill(moRGBBlack)
     moBeamRow.write()
     mbIsFiring = False
+    mbIsWarming = False
     moI2SAudio.stop()
 
 def RunOverloadMode():
@@ -352,6 +370,7 @@ while True:
         btnTriggerDown = time.monotonic()
         # start firing sound, warmup beam leds
         if not mbIsCharging and not mbInMenu:
+            mdecStartFiringTime = time.monotonic()
             moI2SAudio.play(moFireWarmSnd)
             # while moI2SAudio.playing:
             StartFiring(True)
@@ -370,7 +389,7 @@ while True:
 
     if mbIsWarming is True:
         StartFiring(False)
-    RunFiring()
+    RunFiring(False)
 
     # handle each button's actions. btn1 needs different between long and short press
     if btn1.fell:
