@@ -25,6 +25,7 @@ BEAM_LED_PIN = board.A0
 SETTING_SND_FILE = "adjust.wav"
 FIRELOOP_SND_FILE = "firingloop.wav"
 FIREWARM_SND_FILE = "warmup.wav"
+FIREDOWN_SND_FILE = "cooldown.wav"
 BTN_LEFT = board.TX
 BTN_RIGHT = board.RX
 BTN_TRIGGER = board.BUTTON
@@ -55,9 +56,11 @@ moI2SAudio = audiobusio.I2SOut(board.SDA1, board.SCL1, board.SCK)
 moSettingSoundFile = open(SETTING_SND_FILE, "rb")
 moFiringLoopFile = open(FIRELOOP_SND_FILE, "rb")
 moFireWarmFile = open(FIREWARM_SND_FILE, "rb")
+moFireDownFile = open(FIREDOWN_SND_FILE, "rb")
 moSettingSnd = audiocore.WaveFile(moSettingSoundFile)
 moFireLoopSnd = audiocore.WaveFile(moFiringLoopFile)
 moFireWarmSnd = audiocore.WaveFile(moFireWarmFile)
+moFireDownSnd = audiocore.WaveFile(moFireDownFile)
 mnFireWarmSndLength = 1.25
 mdFireLEDLength = 0.18
 mnFireWarmStep = 0
@@ -213,7 +216,7 @@ def StartFiring(bIsInit):
     global mnFiringLastTime
     global mnFireWarmSndLength
     nFadeSteps = 4
-     
+
     # need to fade in beam WAY faster than warmup sound
     if not mbIsWarming and not bIsInit:
         return
@@ -226,21 +229,13 @@ def StartFiring(bIsInit):
     if (mnFireWarmStep < nFadeSteps):
         oRedColor = (int(255 / (nFadeSteps - mnFireWarmStep)), 0, 0)
         moBeamRow.fill(oRedColor)
-        moBeamRow.write()        
+        moBeamRow.write()
         mnFiringLastTime = time.monotonic()
         print(mnFireWarmStep, " | ", oRedColor)
         mnFireWarmStep += 1
-    # elif mnFireWarmStep == nFadeSteps:
-    #    oRedColor = (255, 0, 0)
-    #    moBeamRow.fill(oRedColor)
-    #    moBeamRow.write()
-    #    print(mnFireWarmStep, " | ", oRedColor)
-    #    mnFireWarmStep += 1
-    #    mnFiringLastTime = time.monotonic()
     decTimeRef = time.monotonic() - mdecStartFiringTime
     # warming over, set isFiring flag on to hand over to that animation
     if mnFireWarmStep >= nFadeSteps and (decTimeRef > mnFireWarmSndLength):
-        print("ended warmup")
         mbIsWarming = False
         mnFireWarmStep = 0
         mbIsFiring = True
@@ -251,23 +246,44 @@ def RunFiring(bInitLoop):
     global BEAM_FPS
     global BEAM_FLICKER_RATE
     global moI2SAudio
+    global moBeamRow
+    global moRGBBlack
+    global mnBeamLEDCount
     # depending on "refresh rate" and "flicker rate" values at top,
     # occasionally turn off beam neopixels uniformly?
-    if not mbIsFiring or mbInMenu is True or mbIsCharging is True:
+    if (not mbIsFiring and not bInitLoop) or mbInMenu is True or mbIsCharging is True:
+        # if (moBeamRow[mnBeamLEDCount-1] != moRGBBlack):
+        #    moBeamRow.fill(moRGBBlack)
+        #    moBeamRow.show()
         return
     if (bInitLoop is True):
-        moI2SAudio.play(moFireLoopSnd, loop=True)        
+        mbIsFiring = True
+        moI2SAudio.play(moFireLoopSnd, loop=True)
 
 def StopFiring():
     global moBeamRow
     global mbIsFiring
     global mbIsWarming
     global moI2SAudio
-    moBeamRow.fill(moRGBBlack)
-    moBeamRow.write()
+    global mnFireWarmStep
+    global moFireDownSnd
+    # run cooldown sound
+    moI2SAudio.stop()
+    moI2SAudio.play(moFireDownSnd, loop=False)
+    # block on cooldown sound
+    # while moI2SAudio.playing:
+    #    pass
+    # moBeamRow.fill(moRGBBlack)
+    # moBeamRow.show()
+    mnFireWarmStep = 0
+    if (mbIsWarming is True):
+        time.sleep(0.2)
+    else:
+        time.sleep(0.1)
     mbIsFiring = False
     mbIsWarming = False
-    moI2SAudio.stop()
+    moBeamRow.fill(moRGBBlack)
+    moBeamRow.show()
 
 def RunOverloadMode():
     pass
@@ -284,7 +300,7 @@ def DisableCharging():
     global moSettingRow
     moSettingRow.brightness = 0.1
     moSettingRow.fill(moRGBBlack)
-    moSettingRow.write()
+    moSettingRow.show()
     UpdateSetting()
 
 def RunChargingMode():
@@ -330,7 +346,7 @@ def RunChargingMode():
                     moSettingRow[nIterator3] = (0, 0, nBlueStrength)
                     if not IS_TYPE_ONE_PHASER:
                         moSettingRow[nIterator3 + 8] = (0, 0, moRGBStrength)
-            moSettingRow.write()
+            moSettingRow.show()
         mnChargingLastTime = nCurrentTime
         mnChargingFrame += 1
         print(mnChargingFrame)
