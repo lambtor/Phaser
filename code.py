@@ -6,6 +6,8 @@ import audiocore
 # from audiocore import WaveFile
 from adafruit_debouncer import Debouncer
 import time
+import random
+# import math
 
 # this script is meant to be used with qt py rp2040
 # this is for stemma speaker board. drop wav file on main directory of board
@@ -30,8 +32,8 @@ BTN_LEFT = board.TX
 BTN_RIGHT = board.RX
 BTN_TRIGGER = board.BUTTON
 # number from 0-1 (you'd never want 1, as that'd be ALWAYS OFF
-BEAM_FLICKER_RATE = 0.2
-BEAM_FPS = 60
+BEAM_FLICKER_RATE = 0.1
+BEAM_FPS = 90
 
 # --------
 # current active device settings - do these need to persist across power cycles?
@@ -66,6 +68,7 @@ mdFireLEDLength = 0.18
 mnFireWarmStep = 0
 
 moRGBRed = (128, 0, 0)
+moRGBFullRed = (128, 0, 0)
 moRGBBlack = (0, 0, 0)
 moRGBStrength = 128
 
@@ -106,6 +109,7 @@ mnLastBattCheck = 0
 mnBattCheckInterval = 1
 mnFiringLastTime = 0
 mdecStartFiringTime = 0.0
+mdecLastBeamFrame = 0.0
 
 def ButtonRead(pin):
     io = digitalio.DigitalInOut(pin)
@@ -248,17 +252,30 @@ def RunFiring(bInitLoop):
     global moI2SAudio
     global moBeamRow
     global moRGBBlack
+    global moRGBFullRed
     global mnBeamLEDCount
+    global mdecLastBeamFrame
+    if (bInitLoop is True):
+        mbIsFiring = True
+        moI2SAudio.play(moFireLoopSnd, loop=True)
     # depending on "refresh rate" and "flicker rate" values at top,
     # occasionally turn off beam neopixels uniformly?
     if (not mbIsFiring and not bInitLoop) or mbInMenu is True or mbIsCharging is True:
         # if (moBeamRow[mnBeamLEDCount-1] != moRGBBlack):
         #    moBeamRow.fill(moRGBBlack)
         #    moBeamRow.show()
-        return
-    if (bInitLoop is True):
-        mbIsFiring = True
-        moI2SAudio.play(moFireLoopSnd, loop=True)
+        return    
+    if ((time.monotonic() - mdecLastBeamFrame) >= (1 / BEAM_FPS)):        
+        nRand = random.randint(0, 9)
+        # nRand = int((math.modf(time.monotonic())[0]) * 10)
+        # print(nRand)
+        if (nRand < (BEAM_FLICKER_RATE * 10)):            
+            moBeamRow.fill(moRGBBlack)
+            moBeamRow.show()
+        else:
+            moBeamRow.fill(moRGBFullRed)
+            moBeamRow.show()
+        mdecLastBeamFrame = time.monotonic() 
 
 def StopFiring():
     global moBeamRow
