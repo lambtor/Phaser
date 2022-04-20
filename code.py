@@ -7,7 +7,9 @@ import audiocore
 from adafruit_debouncer import Debouncer
 import time
 import random
-# import math
+import math
+from userSettings import UserSettings
+from menuOptions import MenuOptions
 
 # this script is meant to be used with qt py rp2040
 # this is for stemma speaker board. drop wav file on main directory of board
@@ -71,6 +73,7 @@ moRGBRed = (128, 0, 0)
 moRGBFullRed = (128, 0, 0)
 moRGBBlack = (0, 0, 0)
 moRGBStrength = 128
+moUserSettings = UserSettings()
 
 # all comments are done via pound sign,
 # and MUST have a space immediately after the pound sign - this is some vb6 shit.
@@ -107,7 +110,8 @@ mnChargingFrameDelay = 0.25
 mnChargingLastTime = 0
 mnLastBattCheck = 0
 mnBattCheckInterval = 1
-mnFiringLastTime = 0
+mdFiringLastTime = 0
+mnWarmLastTime = 0
 mdecStartFiringTime = 0.0
 mdecLastBeamFrame = 0.0
 
@@ -155,7 +159,7 @@ def UpdateSetting():
     if mbIsCharging or mbInMenu:
         return
 
-    print(mnIntensitySetting)
+    # print(mnIntensitySetting)
     if mnIntensitySetting == 0:
         # moSettingRow.fill(moRGBBlack)
         # moSettingRow.write()
@@ -217,26 +221,44 @@ def StartFiring(bIsInit):
     global moBeamRow
     global mbIsWarming
     global mnFireWarmStep
-    global mnFiringLastTime
+    global mnWarmLastTime
     global mnFireWarmSndLength
+    global mdecStartFiringTime
+    global moRGBFullRed
+    global moRGBBlack
     nFadeSteps = 4
-
+    oRedColor = (255, 0, 0)
     # need to fade in beam WAY faster than warmup sound
     if not mbIsWarming and not bIsInit:
         return
     if bIsInit is True:
         mbIsWarming = True
     # kick out if it's too soon to step to next frame
-    if (time.monotonic() - mnFiringLastTime) < (mdFireLEDLength / nFadeSteps):
+    if (time.monotonic() - mnWarmLastTime) < (mdFireLEDLength / nFadeSteps):
         return
+
     # fade from black up to full red - this is non-blocking
     if (mnFireWarmStep < nFadeSteps):
         oRedColor = (int(255 / (nFadeSteps - mnFireWarmStep)), 0, 0)
         moBeamRow.fill(oRedColor)
         moBeamRow.write()
-        mnFiringLastTime = time.monotonic()
-        print(mnFireWarmStep, " | ", oRedColor)
+        mnWarmLastTime = time.monotonic()
+        # print(mnFireWarmStep, " | ", oRedColor)
         mnFireWarmStep += 1
+        return
+    if (mnFireWarmStep == nFadeSteps):
+        oRedColor = (255, 0, 0)
+    # flicker during warmup
+    if ((time.monotonic() - mnWarmLastTime) >= (1 / BEAM_FPS)):
+        nRand = random.randint(0, 9)
+        # nRand = int(math.modf(time.monotonic())[0] * 10)
+        if (nRand < (BEAM_FLICKER_RATE * 10)):
+            moBeamRow.fill(moRGBBlack)
+            moBeamRow.show()
+        else:
+            moBeamRow.fill(oRedColor)
+            moBeamRow.show()
+        mnWarmLastTime = time.monotonic()
     decTimeRef = time.monotonic() - mdecStartFiringTime
     # warming over, set isFiring flag on to hand over to that animation
     if mnFireWarmStep >= nFadeSteps and (decTimeRef > mnFireWarmSndLength):
@@ -254,7 +276,7 @@ def RunFiring(bInitLoop):
     global moRGBBlack
     global moRGBFullRed
     global mnBeamLEDCount
-    global mdecLastBeamFrame
+    global mdFiringLastTime
     if (bInitLoop is True):
         mbIsFiring = True
         moI2SAudio.play(moFireLoopSnd, loop=True)
@@ -264,18 +286,17 @@ def RunFiring(bInitLoop):
         # if (moBeamRow[mnBeamLEDCount-1] != moRGBBlack):
         #    moBeamRow.fill(moRGBBlack)
         #    moBeamRow.show()
-        return    
-    if ((time.monotonic() - mdecLastBeamFrame) >= (1 / BEAM_FPS)):        
+        return
+    if ((time.monotonic() - mdFiringLastTime) >= (1 / BEAM_FPS)):
         nRand = random.randint(0, 9)
-        # nRand = int((math.modf(time.monotonic())[0]) * 10)
-        # print(nRand)
-        if (nRand < (BEAM_FLICKER_RATE * 10)):            
+        # nRand = int(math.modf(time.monotonic())[0] * 10)
+        if (nRand < (BEAM_FLICKER_RATE * 10)):
             moBeamRow.fill(moRGBBlack)
             moBeamRow.show()
         else:
             moBeamRow.fill(moRGBFullRed)
             moBeamRow.show()
-        mdecLastBeamFrame = time.monotonic() 
+        mdFiringLastTime = time.monotonic()
 
 def StopFiring():
     global moBeamRow
@@ -366,9 +387,32 @@ def RunChargingMode():
             moSettingRow.show()
         mnChargingLastTime = nCurrentTime
         mnChargingFrame += 1
-        print(mnChargingFrame)
+        # print(mnChargingFrame)
         if (mnChargingFrame > nMaxFrames):
             mnChargingFrame = 0
+
+def ShowMenu():
+    # init setting colors using current values
+    # only bottom 8 leds used for menu
+    global mbInMenu
+    global moRGBBlack
+    moSettingRow[0] = MenuOptions.Frequency[moUserSettings.Frequency]
+    moSettingRow[1] = MenuOptions.Autofire
+    moSettingRow[2] = MenuOptions.Volume[moUserSettings.Volume]
+    moSettingRow[3] = MenuOptions.Orientation[moUserSettings.Orientation]
+    moSettingRow[4] = MenuOptions.BeamBrightness[moUserSettings.BeamBrightIndex]
+    moSettingRow[5] = MenuOptions.SettingBrightness[moUserSettings.SettingBrightIndex]
+    # moSettingRow[5] = moRGBBlack
+    moSettingRow[6] = MenuOptions.Overload
+    moSettingRow[7] = MenuOptions.Exit
+    moSettingRow.brightness = 0.05
+    moSettingRow.show()
+    mbInMenu = True	
+
+def ExitMenu():
+    global mbInMenu
+    mbInMenu = False
+    UpdateSetting()
 
 # sound effect output via mp3 or wav playback to a speaker.
 # firing sound mapped to trigger press. split between "startup" and "active" sounds
@@ -383,6 +427,7 @@ btn2Down = 0
 btnTriggerDown = 0
 # boot this into warning mode initially
 WarningShotMode()
+ShowMenu()
 
 # arduino equivalent of loop()
 while True:
