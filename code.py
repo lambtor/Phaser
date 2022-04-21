@@ -126,6 +126,7 @@ mnModeInterval = 1
 mnMenuModeThreshold = 2.0
 mbMenuBtn1Clear = False
 mbMenuBtn2Clear = False
+mnMenuIndex = 0
 
 def ButtonRead(pin):
     io = digitalio.DigitalInOut(pin)
@@ -345,6 +346,10 @@ def CheckCharging():
     # anytime usb connected, battery is charging
     # if (voltage > maximum)
     # moActiveMode = 2
+    # set brightness for settings chain to 0.4
+    # to allow brightness for animation
+    # if (moSettingRow.brightness != GetSettingBrightnessLevel()):
+    #    moSettingRow.brightness = GetSettingBrightnessLevel()
     # change mode to normal and update setting row
     # elif (moActiveMode == 2)
     # moActiveMode = 0
@@ -377,12 +382,8 @@ def RunChargingMode():
     if ((nCurrentTime - mnChargingLastTime) < mnChargingFrameDelay):
         return
 
-    # if mbIsCharging:
-    # set brightness for settings chain to 0.4
-    # to allow brightness for animation
-    if (moSettingRow.brightness != 0.4):
-        moSettingRow.brightness = 0.4
-
+    # to do: modify animation to all solid up to floor(battlvl / leds)
+    # and next one above it to flashing or pulsing
     if mnChargingFrame >= 0 and mnChargingFrame <= mnSettingLEDMax:
         # draw current "frame" on settings pixels
         for nIterator3 in range(mnSettingLEDMax - 1):
@@ -398,7 +399,7 @@ def RunChargingMode():
             # elif (nIterator3 - mnChargingFrame) == 1:
             #    if nIterator3 <= nTemp:
             #        moSettingRow[nIterator3] = (0, 0, int(moRGBStrength / nFade))
-            elif nIterator3 <= int(nBattPercentage / (100 / (mnSettingLEDMax - 1))):
+            elif nIterator3 <= nTemp:
                 nBlueStrength = int((moRGBStrength / nFade) / nFade)
                 moSettingRow[nIterator3] = (0, 0, nBlueStrength)
                 if not IS_TYPE_ONE_PHASER:
@@ -426,15 +427,44 @@ def ShowMenu():
     moSettingRow[6] = MenuOptions.Overload
     moSettingRow[7] = MenuOptions.Exit
     # moSettingRow.brightness = 0.05
+    # highlight current hovered option
     moSettingRow.show()
     mbMenuBtn1Clear = False
-    mbMenuBtn2Clear = False
-    mbInMenu = True	
+    mbMenuBtn2Clear = False    
+    mbInMenu = True
+    NavMenu(0)
 
 def ExitMenu():
     global mbInMenu
     mbInMenu = False
     UpdateSetting()
+
+def NavMenu(nIndex):
+    global mnMenuIndex
+    # undo previous "highlight"
+    moSettingRow[mnMenuIndex] = GetMenuIndexColor(mnMenuIndex)
+    if (mnMenuIndex == 7 and nIndex == 1):
+        mnMenuIndex = 0
+    elif (mnMenuIndex == 0 and nIndex == -1):
+        mnMenuIndex = 7
+    else:
+        mnMenuIndex += nIndex
+    # add "highlight" to new index
+    moSettingRow[mnMenuIndex] = GetMenuIndexColor(mnMenuIndex)
+    moSettingRow.show()
+
+def GetMenuIndexColor(nIndex):
+    global moUserSettings
+    arrMenu[0] = MenuOptions.Frequency[moUserSettings.Frequency]
+    arrMenu[1] = MenuOptions.Autofire
+    arrMenu[2] = MenuOptions.Volume[moUserSettings.Volume]
+    arrMenu[3] = MenuOptions.Orientation[moUserSettings.Orientation]
+    arrMenu[4] = MenuOptions.BeamBrightness[moUserSettings.BeamBrightIndex]
+    arrMenu[5] = MenuOptions.SettingBrightness[moUserSettings.SettingBrightIndex]
+    arrMenu[6] = MenuOptions.Overload
+    arrMenu[7] = MenuOptions.Exit
+    return arrMenu[nIndex]
+    
 
 def GetSettingBrightnessLevel():
     # this should go 1/2, 1/4, 1/8, 1/12, 1/16, 1/20
@@ -487,9 +517,13 @@ while True:
         if btn1.rose:
             if not mbMenuBtn1Clear:
                 mbMenuBtn1Clear = True
+            else:
+                NavMenu(-1)
         if btn2.rose:
             if not mbMenuBtn2Clear:
                 mbMenuBtn2Clear = True
+            else:
+                NavMenu(1)
     # default to normal
     else:
         if btnTrigger.fell:
