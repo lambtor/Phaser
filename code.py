@@ -37,6 +37,17 @@ FIREDOWN_SND_FILE = "cooldown.wav"
 BTN_LEFT = board.TX
 BTN_RIGHT = board.RX
 BTN_TRIGGER = board.BUTTON
+# menu settings. 8 total LEDs, so if you want these re-ordered,
+# set their places here. ALL these need to be unique integers < 8
+MENUIDX_FREQ = 0
+MENUIDX_AUTO = 1
+MENUIDX_VOL = 2
+MENUIDX_ORNT = 3
+MENUIDX_BEAM = 4
+MENUIDX_STNG = 5
+MENUIDX_OVLD = 6
+MENUIDX_EXIT = 7
+
 # number from 0-1 (you'd never want 1, as that'd be ALWAYS OFF
 BEAM_FLICKER_RATE = 0.1
 BEAM_FPS = 90
@@ -77,7 +88,7 @@ moRGBRed = (128, 0, 0)
 moRGBFullRed = (128, 0, 0)
 moRGBBlack = (0, 0, 0)
 moRGBStrength = 128
-moUserSettings = UserSettings()
+moUser = UserSettings()
 
 # all comments are done via pound sign,
 # and MUST have a space immediately after the pound sign - this is some vb6 shit.
@@ -105,7 +116,6 @@ moBeamRow.auto_write = False
 
 # time function returns everything as seconds.
 # all comparisons for delay less than 1 second need to use decimals
-mbInMenu = False
 mbIsFiring = False
 mbIsWarming = False
 mnChargingFrame = 0
@@ -119,6 +129,7 @@ mdecStartFiringTime = 0.0
 mdecLastBeamFrame = 0.0
 # this is used in main loop to control button behavior
 # 0 = normal, 1 = menu, 2 = charging
+# 3 = autofire, 4 = overload
 moActiveMode = 0
 mdecModeTime = 0.0
 # seconds between check for current active mode
@@ -139,7 +150,7 @@ def SettingDecrease(nAmount):
     global mnIntensitySetting
     if mnIntensitySetting > 0:
         mnIntensitySetting -= nAmount
-    UpdateSetting()
+    UpdateIntensity()
 
 
 def SettingIncrease(nAmount):
@@ -147,7 +158,7 @@ def SettingIncrease(nAmount):
     global mnIntensitySetting
     if mnIntensitySetting < (mnSettingLEDMax - 1):
         mnIntensitySetting += nAmount
-    UpdateSetting()
+    UpdateIntensity()
 
 # settings with 2 bars, bottom bar goes unlit to full green
 # then from full green, for 8-15, this bar fades green to orange
@@ -156,7 +167,7 @@ def SettingIncrease(nAmount):
 # need way to set phaser to overload from setting 15 (hold up btn 5 sec?)
 # need way to set phaser to autofire (wesley) from zero (hold down btn 3 sec?)
 # warning shot mode, set 1 LED pink & max sound min beam brightness
-def UpdateSetting():
+def UpdateIntensity():
     global mnIntensitySetting
     global moSettingRow
     global moRGBRed
@@ -164,11 +175,6 @@ def UpdateSetting():
     global moRGBStrength
     global mnSettingLEDMax
     global IS_TYPE_ONE_PHASER
-    # global mbIsCharging
-    # global mbInMenu
-
-    # if mbIsCharging or mbInMenu:
-    #    return
 
     # print(mnIntensitySetting)
     if mnIntensitySetting == 0:
@@ -177,6 +183,7 @@ def UpdateSetting():
         WarningShotMode()
         return
 
+    # to-do: flip orientation
     # canon behavior for settings with 8 leds
     if (IS_TYPE_ONE_PHASER is True):
         # transition entire row from green to red as it marches from 0-7
@@ -333,11 +340,43 @@ def StopFiring():
     moBeamRow.fill(moRGBBlack)
     moBeamRow.show()
 
-def RunOverloadMode():
+def StartOverload():
+    global moActiveMode
+    global moSettingRow
+    moActiveMode = 4
+    moSettingRow.fill(moRGBBlack)
+    moSettingRow.show()
     pass
 
-def DisableOverload():
+def RunOverload():
+    global moSettingRow
     pass
+
+def StopOverload():
+    global moActiveMode
+    global moSettingRow
+    moActiveMode = 0
+    moSettingRow.fill(moRGBBlack)
+    moSettingRow.show()
+    # play wind-down sound?
+    UpdateIntensity()
+
+def StartAutofire():
+    global moActiveMode
+    global moSettingRow
+    moActiveMode = 3
+    moSettingRow.fill(moRGBBlack)
+    moSettingRow.show()
+    pass
+
+def StopAutofire():
+    global moActiveMode
+    global moSettingRow
+    moActiveMode = 0
+    moSettingRow.fill(moRGBBlack)
+    moSettingRow.show()
+    # play cancel sound?
+    UpdateIntensity()
 
 def CheckCharging():
     # if charging mode is active, run charging mode
@@ -361,7 +400,7 @@ def DisableCharging():
     moSettingRow.brightness = GetSettingBrightnessLevel()
     moSettingRow.fill(moRGBBlack)
     moSettingRow.show()
-    UpdateSetting()
+    UpdateIntensity()
 
 def RunChargingMode():
     # global mbIsCharging
@@ -414,35 +453,37 @@ def RunChargingMode():
 def ShowMenu():
     # init setting colors using current values
     # only bottom 8 leds used for menu
-    global mbInMenu
+    global moActiveMode
     global moRGBBlack
-    global moUserSettings
-    moSettingRow[0] = MenuOptions.Frequency[moUserSettings.Frequency]
-    moSettingRow[1] = MenuOptions.Autofire
-    moSettingRow[2] = MenuOptions.Volume[moUserSettings.Volume]
-    moSettingRow[3] = MenuOptions.Orientation[moUserSettings.Orientation]
-    moSettingRow[4] = MenuOptions.BeamBrightness[moUserSettings.BeamBrightIndex]
-    moSettingRow[5] = MenuOptions.SettingBrightness[moUserSettings.SettingBrightIndex]
+    global moUser
+    global moSettingRow
+    moSettingRow[MENUIDX_FREQ] = MenuOptions.Frequency[moUser.Frequency]
+    moSettingRow[MENUIDX_AUTO] = MenuOptions.Autofire
+    moSettingRow[MENUIDX_VOL] = MenuOptions.Volume[moUser.Volume]
+    moSettingRow[MENUIDX_ORNT] = MenuOptions.Orientation[moUser.Orientation]
+    moSettingRow[MENUIDX_BEAM] = MenuOptions.BeamBrightness[moUser.BeamBrightIndex]
+    moSettingRow[MENUIDX_STNG] = MenuOptions.SettingBrightness[moUser.SettingBrightIndex]
     # moSettingRow[5] = moRGBBlack
-    moSettingRow[6] = MenuOptions.Overload
-    moSettingRow[7] = MenuOptions.Exit
+    moSettingRow[MENUIDX_OVLD] = MenuOptions.Overload
+    moSettingRow[MENUIDX_EXIT] = MenuOptions.Exit
     # moSettingRow.brightness = 0.05
     # highlight current hovered option
     moSettingRow.show()
     mbMenuBtn1Clear = False
-    mbMenuBtn2Clear = False    
-    mbInMenu = True
+    mbMenuBtn2Clear = False
+    moActiveMode = 1
     NavMenu(0)
 
 def ExitMenu():
-    global mbInMenu
-    mbInMenu = False
-    UpdateSetting()
+    global moActiveMode
+    moActiveMode = 0
+    UpdateIntensity()
 
 def NavMenu(nIndex):
     global mnMenuIndex
     # undo previous "highlight"
     moSettingRow[mnMenuIndex] = GetMenuIndexColor(mnMenuIndex)
+    # cycle around if you try to go beyond edges
     if (mnMenuIndex == 7 and nIndex == 1):
         mnMenuIndex = 0
     elif (mnMenuIndex == 0 and nIndex == -1):
@@ -453,29 +494,92 @@ def NavMenu(nIndex):
     moSettingRow[mnMenuIndex] = GetMenuIndexColor(mnMenuIndex)
     moSettingRow.show()
 
+def UpdateMenuSetting():
+    global mnMenuIndex
+    global moUser
+    # most menu selections need to hide all other columns
+    # flash current value, change color to "NEW" value
+    # set new value, flash "NEW" value twice
+    # then return to menu
+    if (mnMenuIndex == MENUIDX_EXIT):
+        mnMenuIndex = 0
+        ExitMenu()
+        return
+    elif (mnMenuIndex == MENUIDX_AUTO):
+        StartAutofire()
+        return
+    elif (mnMenuIndex == MENUIDX_OVLD):
+        StartOverload()
+        return
+    elif (mnMenuIndex == MENUIDX_FREQ):
+        nFreq = moUser.Frequency
+        if (nOrient <= (len(MenuOptions.Frequency) - 1)):
+            moUser.Frequency += 1
+        else:
+            moUser.Frequency = 0
+        AnimateSettingChange(MenuOptions.Frequency[nFreq], MenuOptions.Orientation[moUser.Frequency])
+        # play acknowledge sound
+    elif (mnMenuIndex == MENUIDX_ORNT):
+        nOrient = moUser.Orientation
+        if (nOrient <= (len(MenuOptions.Orientation) - 1)):
+            moUser.Orientation += 1
+        else:
+            moUser.Orientation = 0
+        AnimateSettingChange(MenuOptions.Orientation[nOrient], MenuOptions.Orientation[moUser.Orientation])
+    elif (mnMenuIndex == MENUIDX_VOL):
+        nCurrVol = moUser.Volume
+        if (nCurrVol <= (len(MenuOptions.Volume) - 1)):
+            moUser.Volume += 1
+        else:
+            moUser.Volume = 0
+        # play acknowledge sound at old volume
+        AnimateSettingChange(MenuOptions.Volume[nCurrVol], MenuOptions.Volume[moUser.Volume])
+        # play acknowledge sound at new volume
+    elif (mnMenuIndex == MENUIDX_BEAM):
+        nBeam = moUser.BeamBrightIndex
+        if (nBeam <= (len(MenuOptions.BeamBrightness) - 1)):
+            moUser.BeamBrightIndex += 1
+        else:
+            moUser.BeamBrightIndex = 0
+        AnimateSettingChange(MenuOptions.BeamBrightness[nBeam], MenuOptions.BeamBrightness[moUser.BeamBrightIndex])
+        # update brightness for beam row - fade in beam row?
+    elif (mnMenuIndex == MENUIDX_STNG):
+        nSetting = moUser.SettingBrightIndex
+        if (nSetting <= (len(MenuOptions.SettingBrightness) - 1)):
+            moUser.SettingBrightIndex += 1
+        else:
+            moUser.SettingBrightIndex = 0
+        AnimateSettingChange(MenuOptions.SettingBrightness[nSetting], MenuOptions.SettingBrightness[moUser.SettingBrightIndex])
+        # update brightness for setting row to new factor
+    # return to menu
+    NavMenu(0)
+
+def AnimateSettingChange(oColorOld, oColorNew):
+    pass
+
 def GetMenuIndexColor(nIndex):
-    global moUserSettings
-    arrMenu[0] = MenuOptions.Frequency[moUserSettings.Frequency]
-    arrMenu[1] = MenuOptions.Autofire
-    arrMenu[2] = MenuOptions.Volume[moUserSettings.Volume]
-    arrMenu[3] = MenuOptions.Orientation[moUserSettings.Orientation]
-    arrMenu[4] = MenuOptions.BeamBrightness[moUserSettings.BeamBrightIndex]
-    arrMenu[5] = MenuOptions.SettingBrightness[moUserSettings.SettingBrightIndex]
-    arrMenu[6] = MenuOptions.Overload
-    arrMenu[7] = MenuOptions.Exit
-    return arrMenu[nIndex]
-    
+    global moUser
+    arMenu = [0, 0, 0, 0, 0, 0, 0, 0]
+    arMenu[MENUIDX_FREQ] = MenuOptions.Frequency[moUser.Frequency]
+    arMenu[MENUIDX_AUTO] = MenuOptions.Autofire
+    arMenu[MENUIDX_VOL] = MenuOptions.Volume[moUser.Volume]
+    arMenu[MENUIDX_ORNT] = MenuOptions.Orientation[moUser.Orientation]
+    arMenu[MENUIDX_BEAM] = MenuOptions.BeamBrightness[moUser.BeamBrightIndex]
+    arMenu[MENUIDX_STNG] = MenuOptions.SettingBrightness[moUser.SettingBrightIndex]
+    arMenu[MENUIDX_OVLD] = MenuOptions.Overload
+    arMenu[MENUIDX_EXIT] = MenuOptions.Exit
+    return arMenu[nIndex]
 
 def GetSettingBrightnessLevel():
     # this should go 1/2, 1/4, 1/8, 1/12, 1/16, 1/20
-    global moUserSettings
-    return (1 / (moUserSettings.SettingBrightIndex == 0 ? 2 : 4 * moUserSettings.SettingBrightIndex))
+    global moUser
+    return (1 / (moUser.SettingBrightIndex == 0 ? 2 : 4 * moUser.SettingBrightIndex))
 
 def GetBeamBrightnessLevel():
     # this should go 1/2, 1/4, 1/8, 1/12, 1/16, 1/20
     # if 4 is changed to 2, this could be 1, 1/2, 1/6, 1/8, 1/10
-    global moUserSettings
-    return (1 / (moUserSettings.BeamBrightIndex == 0 ? 1 : 2 * moUserSettings.BeamBrightIndex))
+    global moUser
+    return (1 / (moUser.BeamBrightIndex == 0 ? 1 : 2 * moUser.BeamBrightIndex))
 
 # sound effect output via mp3 or wav playback to a speaker.
 # firing sound mapped to trigger press. split between "startup" and "active" sounds
@@ -498,10 +602,11 @@ while True:
     btnTrigger.update()
 
     # logic to determine mode here
-    if (time.monotonic() - mdecModeTime) > mnModeInterval):
+    if ((time.monotonic() - mdecModeTime) > mnModeInterval):
         CheckCharging()
     # check btn timers for menu invocation
-    if (not btn1 and not btn2):
+    # do NOT allow menu entry if charging
+    if (not btn1 and not btn2 and moActiveMode == 0):
         if (time.monotonic() - max(nBtn1DownTime, nBtn2DownTime) > mnMenuModeThreshold):
             # play sound for menu entry? picard monitor chirp?
             ShowMenu()
@@ -524,6 +629,20 @@ while True:
                 mbMenuBtn2Clear = True
             else:
                 NavMenu(1)
+        if btnTrigger.rose:
+            UpdateMenuSetting()
+        # need blink or pulse animation for "highlighted" index
+        RunMenu()
+    # autofire
+    elif moActiveMode == 3:
+        if btn1.rose or btn2.rose or btnTrigger.rose:
+            StopAutofire()
+        RunAutofire()
+    # overload
+    elif moActiveMode == 4:
+        if btn1.rose or btn2.rose or btnTrigger.rose:
+            StopOverload()
+        RunOverload()
     # default to normal
     else:
         if btnTrigger.fell:
@@ -547,45 +666,24 @@ while True:
         if btn1.rose:
             nBtn1DownTime = time.monotonic() - btn1Down
             if nBtn1DownTime < 2:
-                # DisableWarningShotMode()
-                DisableOverload()
                 # decrement setting if under 2 sec press
-                # moAudioPlay.play(moSettingSnd)
-                # while moAudioPlay.playing:
-                #   pass
                 moI2SAudio.play(moSettingSnd)
                 # while moI2SAudio.playing():
                 #    pass
                 SettingDecrease(1)
                 # print(mnIntensitySetting)
-            # else:
-            #    if mnIntensitySetting == 0:
-            #        WarningShotMode()
-
         if btn2.fell:
             btn2Down = time.monotonic()
         if btn2.rose:
             nBtn2DownTime = time.monotonic() - btn2Down
             if nBtn2DownTime < 2:
-                DisableOverload()
-                # probably want to not do anything if already at max or min setting?
-                # or different sound for NO?
-                # decrement setting if under 2 sec press
-                # Plays the sample once when loop=False,
-                # and continuously when loop=True. Does not block
-                # moAudioPlay.play(moSettingSnd)
-                # while moAudioPlay.playing:
-                #    pass
                 moI2SAudio.play(moSettingSnd)
-                # while moI2SAudio.playing:
-                #    pass
                 SettingIncrease(1)
-                # print(mnIntensitySetting)
             else:
                 if not IS_TYPE_ONE_PHASER and mnIntensitySetting == 15:
-                    RunOverloadMode()
+                    StartOverload()
                 elif IS_TYPE_ONE_PHASER is True and mnIntensitySetting == 8:
-                    RunOverloadMode()
+                    StartOverload()
     # run battery check once per second to determine if charging
     # if (time.monotonic() - mnLastBattCheck) > mnBattCheckInterval:
     #    CheckCharging()
