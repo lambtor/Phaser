@@ -44,7 +44,7 @@ MENUIDX_AUTO = 1
 MENUIDX_VOL = 2
 MENUIDX_ORNT = 3
 MENUIDX_BEAM = 4
-MENUIDX_STNG = 5
+MENUIDX_ST = 5
 MENUIDX_OVLD = 6
 MENUIDX_EXIT = 7
 
@@ -138,6 +138,9 @@ mnMenuModeThreshold = 2.0
 mbMenuBtn1Clear = False
 mbMenuBtn2Clear = False
 mnMenuIndex = 0
+mdMenuFlashDelay = 0.3
+mdMenuLastFlash = 0.0
+mbMenuIndexLEDOff = True
 
 def ButtonRead(pin):
     io = digitalio.DigitalInOut(pin)
@@ -368,6 +371,9 @@ def StartAutofire():
     moSettingRow.fill(moRGBBlack)
     moSettingRow.show()
     pass
+    
+def RunAutofire():
+    pass
 
 def StopAutofire():
     global moActiveMode
@@ -457,12 +463,14 @@ def ShowMenu():
     global moRGBBlack
     global moUser
     global moSettingRow
+    global mbMenuBtn1Clear
+    global mbMenuBtn2Clear
     moSettingRow[MENUIDX_FREQ] = MenuOptions.Frequency[moUser.Frequency]
     moSettingRow[MENUIDX_AUTO] = MenuOptions.Autofire
     moSettingRow[MENUIDX_VOL] = MenuOptions.Volume[moUser.Volume]
     moSettingRow[MENUIDX_ORNT] = MenuOptions.Orientation[moUser.Orientation]
     moSettingRow[MENUIDX_BEAM] = MenuOptions.BeamBrightness[moUser.BeamBrightIndex]
-    moSettingRow[MENUIDX_STNG] = MenuOptions.SettingBrightness[moUser.SettingBrightIndex]
+    moSettingRow[MENUIDX_ST] = MenuOptions.SettingBrightness[moUser.SettingBrightIndex]
     # moSettingRow[5] = moRGBBlack
     moSettingRow[MENUIDX_OVLD] = MenuOptions.Overload
     moSettingRow[MENUIDX_EXIT] = MenuOptions.Exit
@@ -474,6 +482,26 @@ def ShowMenu():
     moActiveMode = 1
     NavMenu(0)
 
+def RunMenu():
+    global mdMenuFlashDelay
+    global mdMenuLastFlash
+    global mnMenuIndex
+    global mbMenuIndexLEDOff
+    global moSettingRow
+    global moRGBBlack
+    global moActiveMode
+    if (moActiveMode != 1):
+        return
+    
+    if (time.monotonic() - mdMenuLastFlash > mdMenuFlashDelay):
+        if mbMenuIndexLEDOff is True:
+            moSettingRow[mnMenuIndex] = GetMenuIndexColor(mnMenuIndex)
+        else:
+            moSettingRow[mnMenuIndex] = moRGBBlack            
+        moSettingRow.show()
+        mbMenuIndexLEDOff = not mbMenuIndexLEDOff
+        mdMenuLastFlash = time.monotonic()
+
 def ExitMenu():
     global moActiveMode
     moActiveMode = 0
@@ -481,6 +509,7 @@ def ExitMenu():
 
 def NavMenu(nIndex):
     global mnMenuIndex
+    global mbMenuIndexLEDOff
     # undo previous "highlight"
     moSettingRow[mnMenuIndex] = GetMenuIndexColor(mnMenuIndex)
     # cycle around if you try to go beyond edges
@@ -490,7 +519,7 @@ def NavMenu(nIndex):
         mnMenuIndex = 7
     else:
         mnMenuIndex += nIndex
-    # add "highlight" to new index
+    # add "highlight" to new index?
     moSettingRow[mnMenuIndex] = GetMenuIndexColor(mnMenuIndex)
     moSettingRow.show()
 
@@ -513,7 +542,7 @@ def UpdateMenuSetting():
         return
     elif (mnMenuIndex == MENUIDX_FREQ):
         nFreq = moUser.Frequency
-        if (nOrient <= (len(MenuOptions.Frequency) - 1)):
+        if (nFreq <= (len(MenuOptions.Frequency) - 1)):
             moUser.Frequency += 1
         else:
             moUser.Frequency = 0
@@ -543,7 +572,7 @@ def UpdateMenuSetting():
             moUser.BeamBrightIndex = 0
         AnimateSettingChange(MenuOptions.BeamBrightness[nBeam], MenuOptions.BeamBrightness[moUser.BeamBrightIndex])
         # update brightness for beam row - fade in beam row?
-    elif (mnMenuIndex == MENUIDX_STNG):
+    elif (mnMenuIndex == MENUIDX_ST):
         nSetting = moUser.SettingBrightIndex
         if (nSetting <= (len(MenuOptions.SettingBrightness) - 1)):
             moUser.SettingBrightIndex += 1
@@ -565,7 +594,7 @@ def GetMenuIndexColor(nIndex):
     arMenu[MENUIDX_VOL] = MenuOptions.Volume[moUser.Volume]
     arMenu[MENUIDX_ORNT] = MenuOptions.Orientation[moUser.Orientation]
     arMenu[MENUIDX_BEAM] = MenuOptions.BeamBrightness[moUser.BeamBrightIndex]
-    arMenu[MENUIDX_STNG] = MenuOptions.SettingBrightness[moUser.SettingBrightIndex]
+    arMenu[MENUIDX_ST] = MenuOptions.SettingBrightness[moUser.SettingBrightIndex]
     arMenu[MENUIDX_OVLD] = MenuOptions.Overload
     arMenu[MENUIDX_EXIT] = MenuOptions.Exit
     return arMenu[nIndex]
@@ -573,13 +602,15 @@ def GetMenuIndexColor(nIndex):
 def GetSettingBrightnessLevel():
     # this should go 1/2, 1/4, 1/8, 1/12, 1/16, 1/20
     global moUser
-    return (1 / (moUser.SettingBrightIndex == 0 ? 2 : 4 * moUser.SettingBrightIndex))
+    # return (1 / (moUser.SettingBrightIndex == 0 ? 2 : 4 * moUser.SettingBrightIndex))
+    return 1 if moUser.SettingBrightIndex == 0 else (1 / (4 * moUser.SettingBrightIndex))
 
 def GetBeamBrightnessLevel():
     # this should go 1/2, 1/4, 1/8, 1/12, 1/16, 1/20
     # if 4 is changed to 2, this could be 1, 1/2, 1/6, 1/8, 1/10
     global moUser
-    return (1 / (moUser.BeamBrightIndex == 0 ? 1 : 2 * moUser.BeamBrightIndex))
+    # return (1 / (moUser.BeamBrightIndex == 0 ? 1 : 2 * moUser.BeamBrightIndex))
+    return 1 if moUser.BeamBrightIndex == 0 else (1 / (2 * moUser.BeamBrightIndex))
 
 # sound effect output via mp3 or wav playback to a speaker.
 # firing sound mapped to trigger press. split between "startup" and "active" sounds
@@ -606,8 +637,8 @@ while True:
         CheckCharging()
     # check btn timers for menu invocation
     # do NOT allow menu entry if charging
-    if (not btn1 and not btn2 and moActiveMode == 0):
-        if (time.monotonic() - max(nBtn1DownTime, nBtn2DownTime) > mnMenuModeThreshold):
+    if (not btn1.value and not btn2.value and moActiveMode == 0):
+        if ((time.monotonic() - max(btn1Down, btn2Down)) > mnMenuModeThreshold):
             # play sound for menu entry? picard monitor chirp?
             ShowMenu()
 
@@ -689,4 +720,3 @@ while True:
     #    CheckCharging()
     # need way to keep trigger from causing
     # firing if in a setting adj menu
-
