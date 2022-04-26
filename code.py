@@ -20,7 +20,6 @@ from menuOptions import MenuOptions
 import audiobusio
 # OK OMFG circuitpython has a max of 88 characters per line of code
 # ---------------------------------------------------------------------------------------
-
 # User config settings - these should be set once for program
 # to behave for your hardware
 # true or false here. False means program is for a type 2
@@ -371,7 +370,7 @@ def StartAutofire():
     moSettingRow.fill(moRGBBlack)
     moSettingRow.show()
     pass
-    
+
 def RunAutofire():
     pass
 
@@ -492,12 +491,12 @@ def RunMenu():
     global moActiveMode
     if (moActiveMode != 1):
         return
-    
+
     if (time.monotonic() - mdMenuLastFlash > mdMenuFlashDelay):
         if mbMenuIndexLEDOff is True:
             moSettingRow[mnMenuIndex] = GetMenuIndexColor(mnMenuIndex)
         else:
-            moSettingRow[mnMenuIndex] = moRGBBlack            
+            moSettingRow[mnMenuIndex] = moRGBBlack
         moSettingRow.show()
         mbMenuIndexLEDOff = not mbMenuIndexLEDOff
         mdMenuLastFlash = time.monotonic()
@@ -509,9 +508,12 @@ def ExitMenu():
 
 def NavMenu(nIndex):
     global mnMenuIndex
-    global mbMenuIndexLEDOff
+    global moI2SAudio
+    global moSettingSnd
+    global moSettingRow
+
     # undo previous "highlight"
-    moSettingRow[mnMenuIndex] = GetMenuIndexColor(mnMenuIndex)
+    # moSettingRow[mnMenuIndex] = GetMenuIndexColor(mnMenuIndex)
     # cycle around if you try to go beyond edges
     if (mnMenuIndex == 7 and nIndex == 1):
         mnMenuIndex = 0
@@ -519,9 +521,18 @@ def NavMenu(nIndex):
         mnMenuIndex = 7
     else:
         mnMenuIndex += nIndex
-    # add "highlight" to new index?
-    moSettingRow[mnMenuIndex] = GetMenuIndexColor(mnMenuIndex)
+    moSettingRow[MENUIDX_FREQ] = MenuOptions.Frequency[moUser.Frequency]
+    moSettingRow[MENUIDX_AUTO] = MenuOptions.Autofire
+    moSettingRow[MENUIDX_VOL] = MenuOptions.Volume[moUser.Volume]
+    moSettingRow[MENUIDX_ORNT] = MenuOptions.Orientation[moUser.Orientation]
+    moSettingRow[MENUIDX_BEAM] = MenuOptions.BeamBrightness[moUser.BeamBrightIndex]
+    moSettingRow[MENUIDX_ST] = MenuOptions.SettingBrightness[moUser.SettingBrightIndex]
+    # moSettingRow[5] = moRGBBlack
+    moSettingRow[MENUIDX_OVLD] = MenuOptions.Overload
+    moSettingRow[MENUIDX_EXIT] = MenuOptions.Exit
     moSettingRow.show()
+    time.sleep(0.1)
+    moI2SAudio.play(moSettingSnd)
 
 def UpdateMenuSetting():
     global mnMenuIndex
@@ -542,22 +553,22 @@ def UpdateMenuSetting():
         return
     elif (mnMenuIndex == MENUIDX_FREQ):
         nFreq = moUser.Frequency
-        if (nFreq <= (len(MenuOptions.Frequency) - 1)):
+        if (nFreq < (len(MenuOptions.Frequency) - 1)):
             moUser.Frequency += 1
         else:
             moUser.Frequency = 0
-        AnimateSettingChange(MenuOptions.Frequency[nFreq], MenuOptions.Orientation[moUser.Frequency])
+        AnimateSettingChange(MenuOptions.Frequency[nFreq], MenuOptions.Frequency[moUser.Frequency])
         # play acknowledge sound
     elif (mnMenuIndex == MENUIDX_ORNT):
         nOrient = moUser.Orientation
-        if (nOrient <= (len(MenuOptions.Orientation) - 1)):
+        if (nOrient < (len(MenuOptions.Orientation) - 1)):
             moUser.Orientation += 1
         else:
             moUser.Orientation = 0
         AnimateSettingChange(MenuOptions.Orientation[nOrient], MenuOptions.Orientation[moUser.Orientation])
     elif (mnMenuIndex == MENUIDX_VOL):
         nCurrVol = moUser.Volume
-        if (nCurrVol <= (len(MenuOptions.Volume) - 1)):
+        if (nCurrVol < (len(MenuOptions.Volume) - 1)):
             moUser.Volume += 1
         else:
             moUser.Volume = 0
@@ -566,7 +577,7 @@ def UpdateMenuSetting():
         # play acknowledge sound at new volume
     elif (mnMenuIndex == MENUIDX_BEAM):
         nBeam = moUser.BeamBrightIndex
-        if (nBeam <= (len(MenuOptions.BeamBrightness) - 1)):
+        if (nBeam < (len(MenuOptions.BeamBrightness) - 1)):
             moUser.BeamBrightIndex += 1
         else:
             moUser.BeamBrightIndex = 0
@@ -574,17 +585,37 @@ def UpdateMenuSetting():
         # update brightness for beam row - fade in beam row?
     elif (mnMenuIndex == MENUIDX_ST):
         nSetting = moUser.SettingBrightIndex
-        if (nSetting <= (len(MenuOptions.SettingBrightness) - 1)):
+        if (nSetting < (len(MenuOptions.SettingBrightness) - 1)):
             moUser.SettingBrightIndex += 1
         else:
             moUser.SettingBrightIndex = 0
         AnimateSettingChange(MenuOptions.SettingBrightness[nSetting], MenuOptions.SettingBrightness[moUser.SettingBrightIndex])
         # update brightness for setting row to new factor
     # return to menu
-    NavMenu(0)
+    ShowMenu()
 
 def AnimateSettingChange(oColorOld, oColorNew):
-    pass
+    global mnMenuIndex
+    global moSettingRow
+    global moRGBBlack
+    global moI2SAudio
+    global moSettingSnd
+    moSettingRow.fill(moRGBBlack)
+    moSettingRow.show()
+    time.sleep(0.1)
+    moSettingRow[mnMenuIndex] = oColorOld
+    moSettingRow.show()
+    time.sleep(0.2)
+    moSettingRow[mnMenuIndex] = oColorNew
+    moSettingRow.show()
+    time.sleep(0.5)
+    moSettingRow.fill(moRGBBlack)
+    moSettingRow.show()
+    time.sleep(0.2)
+    moSettingRow[mnMenuIndex] = oColorNew
+    moSettingRow.show()
+    # moI2SAudio.play(moSettingSnd)
+    time.sleep(0.1)
 
 def GetMenuIndexColor(nIndex):
     global moUser
