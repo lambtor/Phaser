@@ -18,7 +18,7 @@ from menuOptions import MenuOptions
 # this script is meant to be used with qt py rp2040
 # this is for MAX98357A speaker board. drop wav files in main directory of qt py board
 import audiobusio
-# OK OMFG circuitpython has a max of 88 characters per line of code
+# OK OMFG mu editor has a max of 88 characters per line of code
 # ---------------------------------------------------------------------------------------
 # User config settings - these should be set once for program
 # to behave for your hardware
@@ -245,10 +245,13 @@ def StartFiring(bIsInit):
     global mnWarmLastTime
     global mnFireWarmSndLength
     global mdecStartFiringTime
-    global moRGBFullRed
+    global moUser
     global moRGBBlack
     nFadeSteps = 4
-    oRedColor = (255, 0, 0)
+    oColor = MenuOptions.Frequency[moUser.Frequency]
+    oFreqR = oColor[0]
+    oFreqGr = oColor[1]
+    oFreqB = oColor[2]
     # need to fade in beam WAY faster than warmup sound
     if not mbIsWarming and not bIsInit:
         return
@@ -260,15 +263,16 @@ def StartFiring(bIsInit):
 
     # fade from black up to full red - this is non-blocking
     if (mnFireWarmStep < nFadeSteps):
-        oRedColor = (int(255 / (nFadeSteps - mnFireWarmStep)), 0, 0)
-        moBeamRow.fill(oRedColor)
+        oFreqR = int(oColor[0] / (nFadeSteps - mnFireWarmStep))
+        oFreqB = int(oColor[1] / (nFadeSteps - mnFireWarmStep))
+        oFreqG = int(oColor[2] / (nFadeSteps - mnFireWarmStep))
+        oColor = (oFreqR, oFreqG, oFreqB)
+        moBeamRow.fill(oColor)
         moBeamRow.write()
         mnWarmLastTime = time.monotonic()
-        # print(mnFireWarmStep, " | ", oRedColor)
+        # print(mnFireWarmStep, " | ", oColor)
         mnFireWarmStep += 1
         return
-    if (mnFireWarmStep == nFadeSteps):
-        oRedColor = (255, 0, 0)
     # flicker during warmup
     if ((time.monotonic() - mnWarmLastTime) >= (1 / BEAM_FPS)):
         nRand = random.randint(0, 9)
@@ -277,7 +281,7 @@ def StartFiring(bIsInit):
             moBeamRow.fill(moRGBBlack)
             moBeamRow.show()
         else:
-            moBeamRow.fill(oRedColor)
+            moBeamRow.fill(oColor)
             moBeamRow.show()
         mnWarmLastTime = time.monotonic()
     decTimeRef = time.monotonic() - mdecStartFiringTime
@@ -295,9 +299,9 @@ def RunFiring(bInitLoop):
     global moI2SAudio
     global moBeamRow
     global moRGBBlack
-    global moRGBFullRed
     global mnBeamLEDCount
     global mdFiringLastTime
+    global moUser
     if (bInitLoop is True):
         mbIsFiring = True
         moI2SAudio.play(moFireLoopSnd, loop=True)
@@ -313,7 +317,7 @@ def RunFiring(bInitLoop):
             moBeamRow.fill(moRGBBlack)
             moBeamRow.show()
         else:
-            moBeamRow.fill(moRGBFullRed)
+            moBeamRow.fill(MenuOptions.Frequency[moUser.Frequency])
             moBeamRow.show()
         mdFiringLastTime = time.monotonic()
 
