@@ -5,3 +5,4 @@ class UserSettings:
 		self.Orientation = 0
 		self.BeamBrightIndex = 0
 		self.SettingBrightIndex = 0
+        self.FreqSup = 0

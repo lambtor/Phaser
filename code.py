@@ -299,6 +299,7 @@ def RunFiring(bInitLoop):
     global moI2SAudio
     global moBeamRow
     global moRGBBlack
+    global moRGBRed
     global mnBeamLEDCount
     global mdFiringLastTime
     global moUser
@@ -314,10 +315,12 @@ def RunFiring(bInitLoop):
         nRand = random.randint(0, 9)
         # nRand = int(math.modf(time.monotonic())[0] * 10)
         if (nRand < (BEAM_FLICKER_RATE * 10)):
-            moBeamRow.fill(moRGBBlack)
+            # moBeamRow.fill(moRGBBlack)
+            moBeamRow.fill(MenuOptions.FreqSup[moUser.FreqSup])
             moBeamRow.show()
         else:
-            moBeamRow.fill(MenuOptions.Frequency[moUser.Frequency])
+            # moBeamRow.fill(MenuOptions.Frequency[moUser.Frequency])
+            moBeamRow.fill(moRGBRed)
             moBeamRow.show()
         mdFiringLastTime = time.monotonic()
 
@@ -356,6 +359,8 @@ def StartOverload():
 
 def RunOverload():
     global moSettingRow
+    # need to flash all setting LEDs progressively faster
+    # while warmup sound plays - track this with frame #
     pass
 
 def StopOverload():
@@ -376,6 +381,8 @@ def StartAutofire():
     pass
 
 def RunAutofire():
+    # manage autofire via frame #
+    #
     pass
 
 def StopAutofire():
@@ -468,14 +475,13 @@ def ShowMenu():
     global moSettingRow
     global mbMenuBtn1Clear
     global mbMenuBtn2Clear
-    moSettingRow[MENUIDX_FREQ] = MenuOptions.Frequency[moUser.Frequency]
-    moSettingRow[MENUIDX_AUTO] = MenuOptions.Autofire
-    moSettingRow[MENUIDX_VOL] = MenuOptions.Volume[moUser.Volume]
-    moSettingRow[MENUIDX_ORNT] = MenuOptions.Orientation[moUser.Orientation]
-    moSettingRow[MENUIDX_BEAM] = MenuOptions.BeamBrightness[moUser.BeamBrightIndex]
-    moSettingRow[MENUIDX_ST] = MenuOptions.SettingBrightness[moUser.SettingBrightIndex]
+
+    for nInt in range(moSettingRow - 1):
+        if nInt == mnMenuIndex:
+            moSettingRow[nInt] = GetMenuIndexColor(mnMenuIndex)
+        else:
+            moSettingRow[nInt] = moRGBBlack
     # moSettingRow[5] = moRGBBlack
-    moSettingRow[MENUIDX_OVLD] = MenuOptions.Overload
     moSettingRow[MENUIDX_EXIT] = MenuOptions.Exit
     # moSettingRow.brightness = 0.05
     # highlight current hovered option
@@ -515,6 +521,7 @@ def NavMenu(nIndex):
     global moI2SAudio
     global moSettingSnd
     global moSettingRow
+    global moRGBBlack
 
     # undo previous "highlight"
     # moSettingRow[mnMenuIndex] = GetMenuIndexColor(mnMenuIndex)
@@ -525,14 +532,13 @@ def NavMenu(nIndex):
         mnMenuIndex = 7
     else:
         mnMenuIndex += nIndex
-    moSettingRow[MENUIDX_FREQ] = MenuOptions.Frequency[moUser.Frequency]
-    moSettingRow[MENUIDX_AUTO] = MenuOptions.Autofire
-    moSettingRow[MENUIDX_VOL] = MenuOptions.Volume[moUser.Volume]
-    moSettingRow[MENUIDX_ORNT] = MenuOptions.Orientation[moUser.Orientation]
-    moSettingRow[MENUIDX_BEAM] = MenuOptions.BeamBrightness[moUser.BeamBrightIndex]
-    moSettingRow[MENUIDX_ST] = MenuOptions.SettingBrightness[moUser.SettingBrightIndex]
+
+    for nInt in range(moSettingRow - 1):
+        if nInt == mnMenuIndex:
+            moSettingRow[nInt] = GetMenuIndexColor(mnMenuIndex)
+        else:
+            moSettingRow[nInt] = moRGBBlack
     # moSettingRow[5] = moRGBBlack
-    moSettingRow[MENUIDX_OVLD] = MenuOptions.Overload
     moSettingRow[MENUIDX_EXIT] = MenuOptions.Exit
     moSettingRow.show()
     time.sleep(0.1)
@@ -557,10 +563,13 @@ def UpdateMenuSetting():
         return
     elif (mnMenuIndex == MENUIDX_FREQ):
         nFreq = moUser.Frequency
+        # freq for modulation uses different flicker backup color
         if (nFreq < (len(MenuOptions.Frequency) - 1)):
             moUser.Frequency += 1
+            moUser.FreqSup += 1
         else:
             moUser.Frequency = 0
+            moUser.FreqSup = 0
         AnimateSettingChange(MenuOptions.Frequency[nFreq], MenuOptions.Frequency[moUser.Frequency])
         # play acknowledge sound
     elif (mnMenuIndex == MENUIDX_ORNT):
@@ -593,6 +602,7 @@ def UpdateMenuSetting():
             moUser.SettingBrightIndex += 1
         else:
             moUser.SettingBrightIndex = 0
+        moSettingRow.brightness = GetSettingBrightnessLevel()
         AnimateSettingChange(MenuOptions.SettingBrightness[nSetting], MenuOptions.SettingBrightness[moUser.SettingBrightIndex])
         # update brightness for setting row to new factor
     # return to menu
@@ -604,6 +614,7 @@ def AnimateSettingChange(oColorOld, oColorNew):
     global moRGBBlack
     global moI2SAudio
     global moSettingSnd
+    # this is blocking - it NEEDS to be for stability
     moSettingRow.fill(moRGBBlack)
     moSettingRow.show()
     time.sleep(0.1)
