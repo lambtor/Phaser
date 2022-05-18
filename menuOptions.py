@@ -1,6 +1,6 @@
 # all lists of options are arrays of RGB colors
 class MenuOptions:
-	Frequency = [(255, 0, 0), (255, 48, 0), (255, 96, 0), (255, 0, 48), (255, 0, 96), (255, 64, 64)]
+	Frequency = [(255, 0, 0), (255, 64, 0), (255, 128, 0), (255, 0, 64), (255, 0, 128), (255, 128, 128)]
 	Autofire = (255, 48, 0)
 	Volume = [(0, 255, 0), (0, 204, 0), (0, 160, 0), (0, 96, 0), (0, 64, 0), (0, 32, 0)]
 	Orientation = [(255, 255, 0), (0, 0, 255)]
@@ -10,4 +10,5 @@ class MenuOptions:
 	Exit = (160, 160, 160)
     # visible beam frequency should use the alternate color on "flicker"?
     # otherwise beam colors might look out of place?
-	FreqSup = [(0, 0, 0), (0, 64, 0), (0, 128, 0), (0, 0, 64), (0, 0, 128), (0, 128, 128)]
+	FreqSup = [(0, 0, 0), (0, 128, 0), (128, 128, 0), (0, 0, 128), (128, 0, 128), (0, 128, 128)]
+    # 0, G, RG, B, RB, GB

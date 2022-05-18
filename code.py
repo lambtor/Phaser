@@ -10,11 +10,7 @@ import random
 # import math
 from userSettings import UserSettings
 from menuOptions import MenuOptions
-# should be using enum for active mode
-# ex: charging, menu, normal
-# but this may be too much complexity for python interpreter
-# from enum import Enum
-
+import alarm
 # this script is meant to be used with qt py rp2040
 # this is for MAX98357A speaker board. drop wav files in main directory of qt py board
 import audiobusio
@@ -113,12 +109,17 @@ moBeamRow = neopixel.NeoPixel(BEAM_LED_PIN, mnBeamLEDCount)
 moBeamRow.brightness = 0.5
 moBeamRow.auto_write = False
 
+# pin alarms. 3 separate ones to allow any button press to wake phaser
+moPinAlarmL = alarm.pin.PinAlarm(BTN_LEFT, value=False, pull=True)
+moPinAlarmR = alarm.pin.PinAlarm(BTN_RIGHT, value=False, pull=True)
+moPinAlarmT = alarm.pin.PinAlarm(BTN_TRIGGER, value=False, pull=True)
+
 # time function returns everything as seconds.
 # all comparisons for delay less than 1 second need to use decimals
 mbIsFiring = False
 mbIsWarming = False
 mnChargingFrame = 0
-mnChargingFrameDelay = 0.25
+mdecChargingFrameDelay = 0.25
 mnChargingLastTime = 0
 mnLastBattCheck = 0
 mnBattCheckInterval = 1
@@ -131,15 +132,24 @@ mdecLastBeamFrame = 0.0
 # 3 = autofire, 4 = overload
 moActiveMode = 0
 mdecModeTime = 0.0
+mdecBtnTime = 0.0
+mdecSleepMax = 120
 # seconds between check for current active mode
 mnModeInterval = 1
 mnMenuModeThreshold = 2.0
 mbMenuBtn1Clear = False
 mbMenuBtn2Clear = False
 mnMenuIndex = 0
-mdMenuFlashDelay = 0.3
-mdMenuLastFlash = 0.0
+mdecMenuFlashDelay = 0.3
+mdecMenuLastFlash = 0.0
 mbMenuIndexLEDOff = True
+mdecOverFrameDelay = 0.5
+mnMaxOverFrame = 100
+mnCurrOverFrame = 0
+mnOverFrameSpeed = 0.3
+mnOverFrameSpDef = 0.3
+mdecOverMult = 1.25
+mdecOverLastTime = 0
 
 def ButtonRead(pin):
     io = digitalio.DigitalInOut(pin)
@@ -352,15 +362,50 @@ def StopFiring():
 def StartOverload():
     global moActiveMode
     global moSettingRow
+    global moRGBRed
+    global mnOverFrameSpeed
     moActiveMode = 4
-    moSettingRow.fill(moRGBBlack)
+    moSettingRow.fill(moRGBRed)
     moSettingRow.show()
+    time.sleep(mnOverFrameSpeed * 2)
+    # play overload warmup sound non-blocking
     pass
 
 def RunOverload():
     global moSettingRow
+    global moRGBRed
+    global moRGBBlack
+    global mnOverFrameSpeed
+    global mdecOverLastTime
+    global mdecOverMult
+    global mnMaxOverFrame
+    global mnOverFrameSpDef
+    global moPinAlarmL
+    global moPinAlarmR
+    global moPinAlarmT
+    
+    # global moActiveMode
     # need to flash all setting LEDs progressively faster
     # while warmup sound plays - track this with frame #
+    nNow = time.monotonic()
+    if ((nNow - mdecOverLastTime > mnOverFrameSpeed) and (mnCurrOverFrame <= mnMaxOverFrame)):
+        if (mnCurrOverFrame % 2 == 0):
+            moSettingRow.fill(moRGBRed)
+        else:
+            moSettingRow.fill(moRGBBlack)
+        if (mnCurrOverFrame % 8 == 0):
+            mnOverFrameSpeed = mnOverFrameSpeed / mdecOverMult
+        mnCurrOverFrame += 1
+    elif (mnCurrOverFrame > mnMaxOverFrame):
+        # play explosion sound
+        moSettingRow.fill(moRGBRed)
+        moSettingRow.show()
+        # sleep until explosion sound plays
+        # time.sleep(hardcode)
+        mnCurrOverFrame = 0
+        mnOverFrameSpeed = mnOverFrameSpDef
+        # go to sleep mode
+        alarm.exit_and_deep_sleep_until_alarms(moPinAlarmL, moPinAlarmR, moPinAlarmT)
     pass
 
 def StopOverload():
@@ -421,7 +466,7 @@ def DisableCharging():
 def RunChargingMode():
     # global mbIsCharging
     global mnChargingFrame
-    global mnChargingFrameDelay
+    global mdecChargingFrameDelay
     global moSettingRow
     global moRGBStrength
     global mnSettingLEDMax
@@ -433,8 +478,8 @@ def RunChargingMode():
     nCurrentTime = time.monotonic()
 
     # if not mbIsCharging or
-    # ((nCurrentTime - mnChargingLastTime) < mnChargingFrameDelay):
-    if ((nCurrentTime - mnChargingLastTime) < mnChargingFrameDelay):
+    # ((nCurrentTime - mnChargingLastTime) < mdecChargingFrameDelay):
+    if ((nCurrentTime - mnChargingLastTime) < mdecChargingFrameDelay):
         return
 
     # to do: modify animation to all solid up to floor(battlvl / leds)
@@ -492,8 +537,8 @@ def ShowMenu():
     NavMenu(0)
 
 def RunMenu():
-    global mdMenuFlashDelay
-    global mdMenuLastFlash
+    global mdecMenuFlashDelay
+    global mdecMenuLastFlash
     global mnMenuIndex
     global mbMenuIndexLEDOff
     global moSettingRow
@@ -502,14 +547,14 @@ def RunMenu():
     if (moActiveMode != 1):
         return
 
-    if (time.monotonic() - mdMenuLastFlash > mdMenuFlashDelay):
+    if (time.monotonic() - mdecMenuLastFlash > mdecMenuFlashDelay):
         if mbMenuIndexLEDOff is True:
             moSettingRow[mnMenuIndex] = GetMenuIndexColor(mnMenuIndex)
         else:
             moSettingRow[mnMenuIndex] = moRGBBlack
         moSettingRow.show()
         mbMenuIndexLEDOff = not mbMenuIndexLEDOff
-        mdMenuLastFlash = time.monotonic()
+        mdecMenuLastFlash = time.monotonic()
 
 def ExitMenu():
     global moActiveMode
@@ -658,6 +703,17 @@ def GetBeamBrightnessLevel():
     # return (1 / (moUser.BeamBrightIndex == 0 ? 1 : 2 * moUser.BeamBrightIndex))
     return 1 if moUser.BeamBrightIndex == 0 else (1 / (2 * moUser.BeamBrightIndex))
 
+def CheckSleep():
+    # need to write current settings to a file
+    # and modify startup to pull from this file
+    # otherwise setting changes will be lost on deep sleep
+    global moPinAlarmL
+    global moPinAlarmR
+    global moPinAlarmT
+    global mdecSleepMax
+    if ((time.monotonic() - mdecBtnTime) > mdecSleepMax):
+        alarm.exit_and_deep_sleep_until_alarms(moPinAlarmL, moPinAlarmR, moPinAlarmT)
+
 # sound effect output via mp3 or wav playback to a speaker.
 # firing sound mapped to trigger press. split between "startup" and "active" sounds
 # loop "active" for as long as trigger pressed
@@ -681,11 +737,15 @@ while True:
     # logic to determine mode here
     if ((time.monotonic() - mdecModeTime) > mnModeInterval):
         CheckCharging()
+    if ((time.monotonic() - mdecBtnTime) > mnModeInterval):
+        CheckSleep()
+
     # check btn timers for menu invocation
     # do NOT allow menu entry if charging
     if (not btn1.value and not btn2.value and moActiveMode == 0):
         if ((time.monotonic() - max(btn1Down, btn2Down)) > mnMenuModeThreshold):
             # play sound for menu entry? picard monitor chirp?
+            mdecBtnTime = time.monotonic()
             ShowMenu()
 
     # charging
@@ -697,32 +757,38 @@ while True:
         # this prevents buttons from moving selection until they're
         # pressed down and risen again
         if btn1.rose:
+            mdecBtnTime = time.monotonic()
             if not mbMenuBtn1Clear:
                 mbMenuBtn1Clear = True
             else:
                 NavMenu(-1)
         if btn2.rose:
+            mdecBtnTime = time.monotonic()
             if not mbMenuBtn2Clear:
                 mbMenuBtn2Clear = True
             else:
                 NavMenu(1)
         if btnTrigger.rose:
+            mdecBtnTime = time.monotonic()
             UpdateMenuSetting()
         # need blink or pulse animation for "highlighted" index
         RunMenu()
     # autofire
     elif moActiveMode == 3:
         if btn1.rose or btn2.rose or btnTrigger.rose:
+            mdecBtnTime = time.monotonic()
             StopAutofire()
         RunAutofire()
     # overload
     elif moActiveMode == 4:
         if btn1.rose or btn2.rose or btnTrigger.rose:
+            mdecBtnTime = time.monotonic()
             StopOverload()
         RunOverload()
     # default to normal
     else:
         if btnTrigger.fell:
+            mdecBtnTime = time.monotonic()
             btnTriggerDown = time.monotonic()
             # disable overload mode if this is pressed?
             # start firing sound, warmup beam leds
@@ -730,6 +796,7 @@ while True:
             moI2SAudio.play(moFireWarmSnd)
             StartFiring(True)
         if btnTrigger.rose:
+            mdecBtnTime = time.monotonic()
             btnTriggerTime = time.monotonic() - btnTriggerDown
             StopFiring()
 
@@ -741,6 +808,7 @@ while True:
         if btn1.fell:
             btn1Down = time.monotonic()
         if btn1.rose:
+            mdecBtnTime = time.monotonic()
             nBtn1DownTime = time.monotonic() - btn1Down
             if nBtn1DownTime < 2:
                 # decrement setting if under 2 sec press
@@ -752,6 +820,7 @@ while True:
         if btn2.fell:
             btn2Down = time.monotonic()
         if btn2.rose:
+            mdecBtnTime = time.monotonic()
             nBtn2DownTime = time.monotonic() - btn2Down
             if nBtn2DownTime < 2:
                 moI2SAudio.play(moSettingSnd)
