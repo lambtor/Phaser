@@ -144,7 +144,7 @@ mdecMenuFlashDelay = 0.3
 mdecMenuLastFlash = 0.0
 mbMenuIndexLEDOff = True
 mdecOverFrameDelay = 0.5
-mnMaxOverFrame = 100
+mnMaxOverFrame = 30
 mnCurrOverFrame = 0
 mnOverFrameSpeed = 0.3
 mnOverFrameSpDef = 0.3
@@ -406,7 +406,6 @@ def RunOverload():
         mnOverFrameSpeed = mnOverFrameSpDef
         # go to sleep mode
         alarm.exit_and_deep_sleep_until_alarms(moPinAlarmL, moPinAlarmR, moPinAlarmT)
-    pass
 
 def StopOverload():
     global moActiveMode
@@ -426,7 +425,7 @@ def StartAutofire():
     pass
 
 def RunAutofire():
-    # manage autofire via frame #
+    # manage autofire via frame # to prevent blocking
     #
     pass
 
