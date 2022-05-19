@@ -406,6 +406,7 @@ def RunOverload():
             mnOverFrameSpeed = mnOverFrameSpeed / mdecOverMult
         mnCurrOverFrame += 1
     elif (mnCurrOverFrame > mnMaxOverFrame):
+        # to-do:
         # play explosion sound
         moSettingRow.fill(moRGBRed)
         moSettingRow.show()
@@ -824,13 +825,15 @@ while True:
     elif moActiveMode == 3:
         if btn1.fell or btn2.fell or btnTrigger.fell:
             mdecBtnTime = time.monotonic()
+            moI2SAudio.play(moSettingSnd)
             StopAutofire()
         RunAutofire()
     # overload
     elif moActiveMode == 4:
         if btn1.rose or btn2.rose or btnTrigger.rose:
             mdecBtnTime = time.monotonic()
-            StopOverload()
+            moI2SAudio.play(moSettingSnd)
+            StopOverload()            
         RunOverload()
     # default to normal
     else:
