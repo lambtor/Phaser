@@ -150,6 +150,14 @@ mnOverFrameSpeed = 0.3
 mnOverFrameSpDef = 0.3
 mdecOverMult = 1.25
 mdecOverLastTime = 0
+mdecAutoCoolTime = 0.0
+mbAutoCooldown = False
+mbAutoFlashing = False
+mdecAutoFlashTime = 0.0
+mdecAutoFlashDelay = 0.3
+mdecAutoStart = 0.0
+mdecAutoBeamStart = 0.0
+mdecAutoBeamEnd = 0.0
 
 def ButtonRead(pin):
     io = digitalio.DigitalInOut(pin)
@@ -383,6 +391,7 @@ def RunOverload():
     global moPinAlarmL
     global moPinAlarmR
     global moPinAlarmT
+    global mnCurrOverFrame
     
     # global moActiveMode
     # need to flash all setting LEDs progressively faster
@@ -419,15 +428,53 @@ def StopOverload():
 def StartAutofire():
     global moActiveMode
     global moSettingRow
+    global mbAutoCooldown
+    global mdecAutoCoolTime
     moActiveMode = 3
     moSettingRow.fill(moRGBBlack)
     moSettingRow.show()
+    # set autofire cooldown timestamp as NOW
+    mdecAutoCoolTime = time.monotonic()    
+    time.sleep(3)
     pass
 
 def RunAutofire():
-    # manage autofire via frame # to prevent blocking
-    #
-    pass
+    global mbIsWarming    
+    global mdecAutoCoolTime
+    global mbAutoCooldown
+    global mdecAutoStart
+    global mdecAutoBeamStart
+    global mdecAutoBeamEnd
+    global mdecAutoFlashTime
+    global mdecAutoFlashDelay
+    global mbAutoFlashing
+    global moSettingRow
+    # need to animate settings to convey autofire
+    # use current intensity as periodically flashing
+    dtNow = time.monotonic()
+    if (dtNow - mdecAutoFlashTime > mdecAutoFlashDelay):
+        if mbAutoFlashing is True:
+            UpdateIntensity()
+            mbAutoFlashing = False
+        else:
+            mbAutoFlashing = True
+            moSettingRow.fill(moRGBBlack)
+            moSettingRow.show()
+    
+    if mbAutoCooldown is True:
+        if (dtNow - mdecAutoCoolTime > 5):
+            mbAutoCooldown = False
+            mdecAutoBeamStart = time.monotonic()
+            StartFiring(True)
+    else:
+        if (dtNow - mdecAutoBeamStart < 5):
+            if mbIsWarming is True:
+                StartFiring(False)
+            RunFiring(False)
+        else:
+            StopFiring()
+            mdecAutoCoolTime = time.monotonic()
+            mbAutoCooldown = True
 
 def StopAutofire():
     global moActiveMode
@@ -435,6 +482,7 @@ def StopAutofire():
     moActiveMode = 0
     moSettingRow.fill(moRGBBlack)
     moSettingRow.show()
+    time.sleep(0.2)
     # play cancel sound?
     UpdateIntensity()
 
@@ -774,7 +822,7 @@ while True:
         RunMenu()
     # autofire
     elif moActiveMode == 3:
-        if btn1.rose or btn2.rose or btnTrigger.rose:
+        if btn1.fell or btn2.fell or btnTrigger.fell:
             mdecBtnTime = time.monotonic()
             StopAutofire()
         RunAutofire()
