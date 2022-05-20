@@ -31,15 +31,15 @@ FIREWARM_SND_FILE = "warmup.wav"
 FIREDOWN_SND_FILE = "cooldown.wav"
 BTN_LEFT = board.TX
 BTN_RIGHT = board.RX
-BTN_TRIGGER = board.BUTTON
+BTN_TRIGGER = board.MOSI
 # menu settings. 8 total LEDs, so if you want these re-ordered,
 # set their places here. ALL these need to be unique integers < 8
 MENUIDX_FREQ = 0
 MENUIDX_AUTO = 1
 MENUIDX_VOL = 2
 MENUIDX_ORNT = 3
-MENUIDX_BEAM = 4
-MENUIDX_ST = 5
+MENUIDX_ST = 4
+MENUIDX_BEAM = 5
 MENUIDX_OVLD = 6
 MENUIDX_EXIT = 7
 
@@ -165,13 +165,11 @@ def ButtonRead(pin):
     io.pull = digitalio.Pull.UP
     return lambda: io.value
 
-
 def SettingDecrease(nAmount):
     global mnIntensitySetting
     if mnIntensitySetting > 0:
         mnIntensitySetting -= nAmount
     UpdateIntensity()
-
 
 def SettingIncrease(nAmount):
     global mnSettingLEDMax
@@ -242,6 +240,7 @@ def UpdateIntensity():
     # moBeamRow.brightness = (1 / (mnSettingLEDMax - mnIntensitySetting))
     decBeamLvBright = (1 / (mnSettingLEDMax - mnIntensitySetting))
     moBeamRow.brightness = decBeamLvBright * GetBeamBrightnessLevel()
+    # moBeamRow.brightness = GetBeamBrightnessLevel()
     moBeamRow.write()
 
 def WarningShotMode():
@@ -268,7 +267,7 @@ def StartFiring(bIsInit):
     nFadeSteps = 4
     oColor = MenuOptions.Frequency[moUser.Frequency]
     oFreqR = oColor[0]
-    oFreqGr = oColor[1]
+    oFreqG = oColor[1]
     oFreqB = oColor[2]
     # need to fade in beam WAY faster than warmup sound
     if not mbIsWarming and not bIsInit:
@@ -392,7 +391,7 @@ def RunOverload():
     global moPinAlarmR
     global moPinAlarmT
     global mnCurrOverFrame
-    
+
     # global moActiveMode
     # need to flash all setting LEDs progressively faster
     # while warmup sound plays - track this with frame #
@@ -435,12 +434,12 @@ def StartAutofire():
     moSettingRow.fill(moRGBBlack)
     moSettingRow.show()
     # set autofire cooldown timestamp as NOW
-    mdecAutoCoolTime = time.monotonic()    
+    mdecAutoCoolTime = time.monotonic()
     time.sleep(3)
     pass
 
 def RunAutofire():
-    global mbIsWarming    
+    global mbIsWarming
     global mdecAutoCoolTime
     global mbAutoCooldown
     global mdecAutoStart
@@ -461,7 +460,7 @@ def RunAutofire():
             mbAutoFlashing = True
             moSettingRow.fill(moRGBBlack)
             moSettingRow.show()
-    
+
     if mbAutoCooldown is True:
         if (dtNow - mdecAutoCoolTime > 5):
             mbAutoCooldown = False
@@ -568,15 +567,16 @@ def ShowMenu():
     global moSettingRow
     global mbMenuBtn1Clear
     global mbMenuBtn2Clear
+    global mnMenuIndex
 
-    for nInt in range(moSettingRow - 1):
+    for nInt in range(len(moSettingRow) - 1):
         if nInt == mnMenuIndex:
             moSettingRow[nInt] = GetMenuIndexColor(mnMenuIndex)
         else:
             moSettingRow[nInt] = moRGBBlack
     # moSettingRow[5] = moRGBBlack
     moSettingRow[MENUIDX_EXIT] = MenuOptions.Exit
-    # moSettingRow.brightness = 0.05
+    moSettingRow.brightness = GetSettingBrightnessLevel()
     # highlight current hovered option
     moSettingRow.show()
     mbMenuBtn1Clear = False
@@ -626,7 +626,7 @@ def NavMenu(nIndex):
     else:
         mnMenuIndex += nIndex
 
-    for nInt in range(moSettingRow - 1):
+    for nInt in range(len(moSettingRow) - 1):
         if nInt == mnMenuIndex:
             moSettingRow[nInt] = GetMenuIndexColor(mnMenuIndex)
         else:
@@ -742,7 +742,7 @@ def GetSettingBrightnessLevel():
     # this should go 1/2, 1/4, 1/8, 1/12, 1/16, 1/20
     global moUser
     # return (1 / (moUser.SettingBrightIndex == 0 ? 2 : 4 * moUser.SettingBrightIndex))
-    return 1 if moUser.SettingBrightIndex == 0 else (1 / (4 * moUser.SettingBrightIndex))
+    return 0.5 if moUser.SettingBrightIndex == 0 else (1 / (4 * moUser.SettingBrightIndex))
 
 def GetBeamBrightnessLevel():
     # this should go 1/2, 1/4, 1/8, 1/12, 1/16, 1/20
@@ -785,8 +785,8 @@ while True:
     # logic to determine mode here
     if ((time.monotonic() - mdecModeTime) > mnModeInterval):
         CheckCharging()
-    if ((time.monotonic() - mdecBtnTime) > mnModeInterval):
-        CheckSleep()
+    # if ((time.monotonic() - mdecBtnTime) > mnModeInterval):
+    #    CheckSleep()
 
     # check btn timers for menu invocation
     # do NOT allow menu entry if charging
@@ -833,7 +833,7 @@ while True:
         if btn1.rose or btn2.rose or btnTrigger.rose:
             mdecBtnTime = time.monotonic()
             moI2SAudio.play(moSettingSnd)
-            StopOverload()            
+            StopOverload()
         RunOverload()
     # default to normal
     else:
