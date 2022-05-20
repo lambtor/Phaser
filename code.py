@@ -132,7 +132,7 @@ mdecLastBeamFrame = 0.0
 # 3 = autofire, 4 = overload
 moActiveMode = 0
 mdecModeTime = 0.0
-mdecBtnTime = 0.0
+mdecBtnTime = time.monotonic()
 mdecSleepMax = 120
 # seconds between check for current active mode
 mnModeInterval = 1
@@ -144,7 +144,7 @@ mdecMenuFlashDelay = 0.3
 mdecMenuLastFlash = 0.0
 mbMenuIndexLEDOff = True
 mdecOverFrameDelay = 0.5
-mnMaxOverFrame = 30
+mnMaxOverFrame = 60
 mnCurrOverFrame = 0
 mnOverFrameSpeed = 0.3
 mnOverFrameSpDef = 0.3
@@ -371,12 +371,12 @@ def StartOverload():
     global moSettingRow
     global moRGBRed
     global mnOverFrameSpeed
-    moActiveMode = 4
     moSettingRow.fill(moRGBRed)
     moSettingRow.show()
-    time.sleep(mnOverFrameSpeed * 2)
+    time.sleep(3)
+    moActiveMode = 4
     # play overload warmup sound non-blocking
-    pass
+    # pass
 
 def RunOverload():
     global moSettingRow
@@ -404,15 +404,21 @@ def RunOverload():
         if (mnCurrOverFrame % 8 == 0):
             mnOverFrameSpeed = mnOverFrameSpeed / mdecOverMult
         mnCurrOverFrame += 1
+        moSettingRow.write()
+        mdecOverLastTime = nNow
+        print(mnCurrOverFrame)
     elif (mnCurrOverFrame > mnMaxOverFrame):
         # to-do:
         # play explosion sound
         moSettingRow.fill(moRGBRed)
-        moSettingRow.show()
+        moSettingRow.write()
         # sleep until explosion sound plays
-        # time.sleep(hardcode)
+        time.sleep(0.2)
         mnCurrOverFrame = 0
         mnOverFrameSpeed = mnOverFrameSpDef
+        mdecOverLastTime = nNow
+        moSettingRow.fill(moRGBBlack)
+        moSettingRow.write()
         # go to sleep mode
         alarm.exit_and_deep_sleep_until_alarms(moPinAlarmL, moPinAlarmR, moPinAlarmT)
 
@@ -759,7 +765,13 @@ def CheckSleep():
     global moPinAlarmR
     global moPinAlarmT
     global mdecSleepMax
+    global mdecBtnTime
+    global moSettingRow
+    global moRGBBlack
     if ((time.monotonic() - mdecBtnTime) > mdecSleepMax):
+        moSettingRow.fill(moRGBBlack)
+        moSettingRow.write()
+        print("sleep mode triggered: " + str(time.monotonic()))
         alarm.exit_and_deep_sleep_until_alarms(moPinAlarmL, moPinAlarmR, moPinAlarmT)
 
 # sound effect output via mp3 or wav playback to a speaker.
@@ -785,8 +797,8 @@ while True:
     # logic to determine mode here
     if ((time.monotonic() - mdecModeTime) > mnModeInterval):
         CheckCharging()
-    # if ((time.monotonic() - mdecBtnTime) > mnModeInterval):
-    #    CheckSleep()
+    if ((time.monotonic() - mdecBtnTime) > mnModeInterval):
+        CheckSleep()
 
     # check btn timers for menu invocation
     # do NOT allow menu entry if charging
