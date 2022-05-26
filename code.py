@@ -79,8 +79,8 @@ mnFireWarmSndLength = 1.25
 mdFireLEDLength = 0.18
 mnFireWarmStep = 0
 
-moRGBRed = (128, 0, 0)
-moRGBFullRed = (128, 0, 0)
+moRGBRed = (255, 0, 0)
+moRGBFullRed = (255, 0, 0)
 moRGBBlack = (0, 0, 0)
 moRGBStrength = 128
 moUser = UserSettings()
@@ -154,7 +154,7 @@ mdecAutoCoolTime = 0.0
 mbAutoCooldown = False
 mbAutoFlashing = False
 mdecAutoFlashTime = 0.0
-mdecAutoFlashDelay = 0.3
+mdecAutoFlashDelay = 0.25
 mdecAutoStart = 0.0
 mdecAutoBeamStart = 0.0
 mdecAutoBeamEnd = 0.0
@@ -264,11 +264,9 @@ def StartFiring(bIsInit):
     global mdecStartFiringTime
     global moUser
     global moRGBBlack
+    global moRGBRed
     nFadeSteps = 4
-    oColor = MenuOptions.Frequency[moUser.Frequency]
-    oFreqR = oColor[0]
-    oFreqG = oColor[1]
-    oFreqB = oColor[2]
+
     # need to fade in beam WAY faster than warmup sound
     if not mbIsWarming and not bIsInit:
         return
@@ -277,6 +275,13 @@ def StartFiring(bIsInit):
     # kick out if it's too soon to step to next frame
     if (time.monotonic() - mnWarmLastTime) < (mdFireLEDLength / nFadeSteps):
         return
+
+    # oColor = MenuOptions.Frequency[moUser.Frequency]
+    oColor = moRGBRed
+    oColorAlt = MenuOptions.FreqSup[moUser.Frequency]
+    oFreqR = oColor[0]
+    oFreqG = oColor[1]
+    oFreqB = oColor[2]
 
     # fade from black up to full red - this is non-blocking
     if (mnFireWarmStep < nFadeSteps):
@@ -295,7 +300,7 @@ def StartFiring(bIsInit):
         nRand = random.randint(0, 9)
         # nRand = int(math.modf(time.monotonic())[0] * 10)
         if (nRand < (BEAM_FLICKER_RATE * 10)):
-            moBeamRow.fill(moRGBBlack)
+            moBeamRow.fill(oColorAlt)
             moBeamRow.show()
         else:
             moBeamRow.fill(oColor)
@@ -333,7 +338,7 @@ def RunFiring(bInitLoop):
         # nRand = int(math.modf(time.monotonic())[0] * 10)
         if (nRand < (BEAM_FLICKER_RATE * 10)):
             # moBeamRow.fill(moRGBBlack)
-            moBeamRow.fill(MenuOptions.FreqSup[moUser.FreqSup])
+            moBeamRow.fill(MenuOptions.FreqSup[moUser.Frequency])
             moBeamRow.show()
         else:
             # moBeamRow.fill(MenuOptions.Frequency[moUser.Frequency])
@@ -406,7 +411,7 @@ def RunOverload():
         mnCurrOverFrame += 1
         moSettingRow.write()
         mdecOverLastTime = nNow
-        print(mnCurrOverFrame)
+        # print(mnCurrOverFrame)
     elif (mnCurrOverFrame > mnMaxOverFrame):
         # to-do:
         # play explosion sound
@@ -428,6 +433,7 @@ def StopOverload():
     moActiveMode = 0
     moSettingRow.fill(moRGBBlack)
     moSettingRow.show()
+    time.sleep(0.2)
     # play wind-down sound?
     UpdateIntensity()
 
@@ -436,48 +442,58 @@ def StartAutofire():
     global moSettingRow
     global mbAutoCooldown
     global mdecAutoCoolTime
+    global mdecAutoFlashDelay
     moActiveMode = 3
-    moSettingRow.fill(moRGBBlack)
-    moSettingRow.show()
+    UpdateIntensity()
+    mbAutoCooldown = True
     # set autofire cooldown timestamp as NOW
     mdecAutoCoolTime = time.monotonic()
-    time.sleep(3)
-    pass
+    # print("cooldown start " + str(mdecAutoCoolTime))
+    # time.sleep(mdecAutoFlashDelay * 2)
 
 def RunAutofire():
     global mbIsWarming
     global mdecAutoCoolTime
     global mbAutoCooldown
     global mdecAutoStart
-    global mdecAutoBeamStart
+    # global mdecAutoBeamStart
+    global mdecStartFiringTime
     global mdecAutoBeamEnd
     global mdecAutoFlashTime
     global mdecAutoFlashDelay
     global mbAutoFlashing
     global moSettingRow
+    global moI2sAudio
+    global moFireWarmSnd
+
     # need to animate settings to convey autofire
     # use current intensity as periodically flashing
     dtNow = time.monotonic()
     if (dtNow - mdecAutoFlashTime > mdecAutoFlashDelay):
         if mbAutoFlashing is True:
             UpdateIntensity()
-            mbAutoFlashing = False
         else:
-            mbAutoFlashing = True
             moSettingRow.fill(moRGBBlack)
             moSettingRow.show()
+        mbAutoFlashing = not mbAutoFlashing
+        mdecAutoFlashTime = time.monotonic()
 
     if mbAutoCooldown is True:
-        if (dtNow - mdecAutoCoolTime > 5):
+        if (time.monotonic() - mdecAutoCoolTime > 5):
             mbAutoCooldown = False
-            mdecAutoBeamStart = time.monotonic()
+            # mdecAutoBeamStart = time.monotonic()
+            # mdecStartFiringTime = mdecAutoBeamStart
+            mdecStartFiringTime = time.monotonic()
+            moI2SAudio.play(moFireWarmSnd)
+            # print("start firing " + str(mdecStartFiringTime))
             StartFiring(True)
     else:
-        if (dtNow - mdecAutoBeamStart < 5):
-            if mbIsWarming is True:
-                StartFiring(False)
-            RunFiring(False)
+        if mbIsWarming is True:
+            # print("warming " + str(time.monotonic()))
+            StartFiring(False)
         else:
+            RunFiring(False)
+        if (dtNow - mdecStartFiringTime >= 3):
             StopFiring()
             mdecAutoCoolTime = time.monotonic()
             mbAutoCooldown = True
@@ -488,7 +504,7 @@ def StopAutofire():
     moActiveMode = 0
     moSettingRow.fill(moRGBBlack)
     moSettingRow.show()
-    time.sleep(0.2)
+    time.sleep(0.3)
     # play cancel sound?
     UpdateIntensity()
 
@@ -835,10 +851,14 @@ while True:
         RunMenu()
     # autofire
     elif moActiveMode == 3:
-        if btn1.fell or btn2.fell or btnTrigger.fell:
+        if btn1.fell or btn2.fell or btnTrigger.fell or btn1.rose or btn2.rose or btnTrigger.rose:
             mdecBtnTime = time.monotonic()
+            StopFiring()
+            moI2SAudio.stop()
+            time.sleep(0.2)
             moI2SAudio.play(moSettingSnd)
             StopAutofire()
+            pass
         RunAutofire()
     # overload
     elif moActiveMode == 4:
