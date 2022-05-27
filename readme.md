@@ -1,9 +1,9 @@
 Purpose of this project is to code a phaser prop from star trek TNG / DS9 / VOY / LD.<br>
 This will try to support both the 2 row, 16 intensity setting type 2 phaser and the 1 row, 8 intensity setting type 1.<br>
 This is coded in circuitpython and initially intended to use the adafruit rp2040 board with a battery backpack. Settings and beam neopixels, buttons used will be on a custom designed PCB.
-<br>
-Project scope / intended features<br>
-<ul>
+<br><br>
+<strong>Project scope / intended features:</strong><br>
+<ol>
 	<li>
 3 buttons: 2 for settings and 1 main trigger</li>
 <li>firing sound mapped to button press. keep firing sound playing in loop while trigger held down.  need 2 sound files to do this, with warmup sound separate from active firing.  active firing sound must be loopable.</li>
@@ -17,10 +17,10 @@ Project scope / intended features<br>
 <li>ability to set phaser to overload - hold down setting increase button for 3 seconds while setting is already at maximum. play "overload" sound and have all setting LEDs flashing red at a gradually increasing rate over 10 seconds before playing an "overload explosion" sound. after overload routine finishes, set phaser to sleep mode.</li>
 <li>ability to activate wesley crusher's "autofire" mode - hold setting decrease button for 3 seconds.  this mode, when active, should have current intensity setting leds flash. this mode should be deactivated when either setting button has been pressed, and setting leds should return to solid on to reflect that.</li>
 <li>sleep mode. when no buttons on the phaser have been pressed for a certain amount of time (2 minutes - this is a constant defined at the top of the code), all lights turn off and power use is minimized until a button has been pressed to wake again.</li>
-</ul><br>
+</ol><br>
 potential functions:<br>
-"grime washing mode"?  not sure what this would be, or how it could be displayed in settings bar.<br>
-method of changing phaser from "left handed" to "right handed" mode.  this would change how setting buttons behave and order of setting led pattern<br>
+"grime washing mode"?  not sure what this would be, or how it could be displayed in settings bar. maybe this is the same as "warning shot".<br>
+<strike>method of changing phaser from "left handed" to "right handed" mode.  this would change how setting buttons behave and order of setting led pattern.</strike> this has been canceled in favor of enable/disable sleep mode toggle in menu.<br>
 <br>
 potential non-canon settings: (need to figure out if these should persist between full powercycles)<br>
 beam brightness - including an "off" option, if anybody uses this for filming and wanted to add beam in post prod?<br>
