@@ -1,5 +1,6 @@
 Purpose of this project is to code a phaser prop from star trek TNG / DS9 / VOY / LD.<br>
 This will try to support both the 2 row, 16 intensity setting type 2 phaser and the 1 row, 8 intensity setting type 1.<br>
+This is coded in circuitpython and initially intended to use the adafruit rp2040 board with a battery backpack. Settings and beam neopixels, buttons used will be on a custom designed PCB.
 <br>
 Project scope / intended features<br>
 <ul>
