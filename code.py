@@ -37,7 +37,7 @@ BTN_TRIGGER = board.MOSI
 MENUIDX_FREQ = 0
 MENUIDX_AUTO = 1
 MENUIDX_VOL = 2
-MENUIDX_ORNT = 3
+MENUIDX_SLEEP = 3
 MENUIDX_ST = 4
 MENUIDX_BEAM = 5
 MENUIDX_OVLD = 6
@@ -687,13 +687,13 @@ def UpdateMenuSetting():
             moUser.FreqSup = 0
         AnimateSettingChange(MenuOptions.Frequency[nFreq], MenuOptions.Frequency[moUser.Frequency])
         # play acknowledge sound
-    elif (mnMenuIndex == MENUIDX_ORNT):
-        nOrient = moUser.Orientation
-        if (nOrient < (len(MenuOptions.Orientation) - 1)):
-            moUser.Orientation += 1
+    elif (mnMenuIndex == MENUIDX_SLEEP):
+        nTimeout = moUser.SleepTimer
+        if (nTimeout < (len(MenuOptions.SleepTimer) - 1)):
+            moUser.SleepTimer = 1
         else:
-            moUser.Orientation = 0
-        AnimateSettingChange(MenuOptions.Orientation[nOrient], MenuOptions.Orientation[moUser.Orientation])
+            moUser.SleepTimer = 0
+        AnimateSettingChange(MenuOptions.SleepTimer[nTimeout], MenuOptions.SleepTimer[moUser.SleepTimer])
     elif (mnMenuIndex == MENUIDX_VOL):
         nCurrVol = moUser.Volume
         if (nCurrVol < (len(MenuOptions.Volume) - 1)):
@@ -753,7 +753,7 @@ def GetMenuIndexColor(nIndex):
     arMenu[MENUIDX_FREQ] = MenuOptions.Frequency[moUser.Frequency]
     arMenu[MENUIDX_AUTO] = MenuOptions.Autofire
     arMenu[MENUIDX_VOL] = MenuOptions.Volume[moUser.Volume]
-    arMenu[MENUIDX_ORNT] = MenuOptions.Orientation[moUser.Orientation]
+    arMenu[MENUIDX_SLEEP] = MenuOptions.SleepTimer[moUser.SleepTimer]
     arMenu[MENUIDX_BEAM] = MenuOptions.BeamBrightness[moUser.BeamBrightIndex]
     arMenu[MENUIDX_ST] = MenuOptions.SettingBrightness[moUser.SettingBrightIndex]
     arMenu[MENUIDX_OVLD] = MenuOptions.Overload
@@ -813,7 +813,7 @@ while True:
     # logic to determine mode here
     if ((time.monotonic() - mdecModeTime) > mnModeInterval):
         CheckCharging()
-    if ((time.monotonic() - mdecBtnTime) > mnModeInterval):
+    if (moUser.SleepTimer == 1 and (time.monotonic() - mdecBtnTime) > mnModeInterval):
         CheckSleep()
 
     # check btn timers for menu invocation
