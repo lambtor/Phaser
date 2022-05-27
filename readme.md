@@ -13,8 +13,9 @@ Project scope / intended features<br>
 <li>support a "warning shot" mode, where a single white led is lit in setting bar, and firing in this mode has beam at its dimmest with sound at its loudest</li>
 <li>for type 2 (16 setting leds), have settings 1-8 light only 1 row from left to right as all green. for settings 9-16, light top row red while also fading bottom row from green to orange.<br>
 	for type 1 (8 setting leds), have settings 1-8 fade from green (at 1) to red (at 8).</li>
-<li>ability to set phaser to overload - hold down setting increase button for 3 seconds while setting is already at maximum. play "overload" sound and have all setting LEDs flashing red at a gradually increasing rate over 10 seconds before playing an "overload explosion" sound. after overload routine finishes, reset phaser to lowest setting / all setting leds off. any button press during "overload" mode should cancel it.</li>
+<li>ability to set phaser to overload - hold down setting increase button for 3 seconds while setting is already at maximum. play "overload" sound and have all setting LEDs flashing red at a gradually increasing rate over 10 seconds before playing an "overload explosion" sound. after overload routine finishes, set phaser to sleep mode.</li>
 <li>ability to activate wesley crusher's "autofire" mode - hold setting decrease button for 3 seconds.  this mode, when active, should have current intensity setting leds flash. this mode should be deactivated when either setting button has been pressed, and setting leds should return to solid on to reflect that.</li>
+<li>sleep mode. when no buttons on the phaser have been pressed for a certain amount of time (2 minutes - this is a constant defined at the top of the code), all lights turn off and power use is minimized until a button has been pressed to wake again.</li>
 </ul><br>
 potential functions:<br>
 "grime washing mode"?  not sure what this would be, or how it could be displayed in settings bar.<br>
