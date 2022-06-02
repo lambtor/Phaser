@@ -88,7 +88,8 @@ moRGBWarn = (128, 0, 128)
 moRGBStrength = 128
 moUser = UserSettings()
 
-# user settings required for mixer definition of volume
+# user settings required for mixer definition of volume. all wav files are 22050 sample rate.
+# if you use a different sample rate, use same one for all sound files and specify it here
 moMixer = audiomixer.Mixer(voice_count=1, sample_rate=22050, channel_count=1, bits_per_sample=16, samples_signed=True)
 
 # all comments are done via pound sign,
@@ -797,7 +798,7 @@ def UpdateVolume():
     elif (moUser.Volume == (len(MenuOptions.Volume) - 1)):
         decLevel = 0
     else:
-        decLevel = 1 - ((1 / len(MenuOptions.Volume)) * moUser.Volume)
+        decLevel = 1 - ((1 / (len(MenuOptions.Volume) - 1)) * moUser.Volume)
     # for nInt in range(len(moMixer.voice) - 1):
     #    moMixer.voice[nInt].level = decLevel
     moMixer.voice[0].level = decLevel
@@ -847,6 +848,7 @@ btn2Down = 0
 btnTriggerDown = 0
 # boot this into warning mode initially
 WarningShotMode()
+UpdateVolume()
 
 # arduino equivalent of loop()
 while True:
