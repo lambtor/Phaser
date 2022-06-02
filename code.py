@@ -14,6 +14,8 @@ import alarm
 # this script is meant to be used with qt py rp2040
 # this is for MAX98357A speaker board. drop wav files in main directory of qt py board
 import audiobusio
+import audiomixer
+
 # OK OMFG mu editor has a max of 88 characters per line of code
 # ---------------------------------------------------------------------------------------
 # User config settings - these should be set once for program
@@ -82,8 +84,12 @@ mnFireWarmStep = 0
 moRGBRed = (255, 0, 0)
 moRGBFullRed = (255, 0, 0)
 moRGBBlack = (0, 0, 0)
+moRGBWarn = (128, 0, 128)
 moRGBStrength = 128
 moUser = UserSettings()
+
+# user settings required for mixer definition of volume
+moMixer = audiomixer.Mixer(voice_count=1, sample_rate=22050, channel_count=1, bits_per_sample=16, samples_signed=True)
 
 # all comments are done via pound sign,
 # and MUST have a space immediately after the pound sign - this is some vb6 shit.
@@ -245,8 +251,10 @@ def UpdateIntensity():
 
 def WarningShotMode():
     global moSettingRow
+    global moRGBBlack
+    global moRGBWarn
     moSettingRow.fill(moRGBBlack)
-    moSettingRow[0] = (255, 64, 64)
+    moSettingRow[0] = moRGBWarn
     moSettingRow.write()
 
 def DisableWarningShotMode():
@@ -327,7 +335,8 @@ def RunFiring(bInitLoop):
     global moUser
     if (bInitLoop is True):
         mbIsFiring = True
-        moI2SAudio.play(moFireLoopSnd, loop=True)
+        # moI2SAudio.play(moFireLoopSnd, loop=True)
+        PlaySound(moFireLoopSnd, False, True)
     # depending on "refresh rate" and "flicker rate" values at top,
     # occasionally turn off beam neopixels uniformly?
     # if (not mbIsFiring and not bInitLoop) or mbInMenu is True or mbIsCharging is True:
@@ -354,8 +363,9 @@ def StopFiring():
     global mnFireWarmStep
     global moFireDownSnd
     # run cooldown sound
-    moI2SAudio.stop()
-    moI2SAudio.play(moFireDownSnd, loop=False)
+    # moI2SAudio.stop()
+    # moI2SAudio.play(moFireDownSnd, loop=False)
+    PlaySound(moFireDownSnd)
     # block on cooldown sound
     # while moI2SAudio.playing:
     #    pass
@@ -484,7 +494,8 @@ def RunAutofire():
             # mdecAutoBeamStart = time.monotonic()
             # mdecStartFiringTime = mdecAutoBeamStart
             mdecStartFiringTime = time.monotonic()
-            moI2SAudio.play(moFireWarmSnd)
+            # moI2SAudio.play(moFireWarmSnd)
+            PlaySound(moFireWarmSnd)
             # print("start firing " + str(mdecStartFiringTime))
             StartFiring(True)
     else:
@@ -657,11 +668,13 @@ def NavMenu(nIndex):
     moSettingRow[MENUIDX_EXIT] = MenuOptions.Exit
     moSettingRow.show()
     time.sleep(0.1)
-    moI2SAudio.play(moSettingSnd)
+    # moI2SAudio.play(moSettingSnd)
+    PlaySound(moSettingSnd)
 
 def UpdateMenuSetting():
     global mnMenuIndex
     global moUser
+    global moSettingSnd
     # most menu selections need to hide all other columns
     # flash current value, change color to "NEW" value
     # set new value, flash "NEW" value twice
@@ -703,6 +716,8 @@ def UpdateMenuSetting():
         # play acknowledge sound at old volume
         AnimateSettingChange(MenuOptions.Volume[nCurrVol], MenuOptions.Volume[moUser.Volume])
         # play acknowledge sound at new volume
+        UpdateVolume()
+        # PlaySound(moSettingSnd)
     elif (mnMenuIndex == MENUIDX_BEAM):
         nBeam = moUser.BeamBrightIndex
         if (nBeam < (len(MenuOptions.BeamBrightness) - 1)):
@@ -773,6 +788,29 @@ def GetBeamBrightnessLevel():
     # return (1 / (moUser.BeamBrightIndex == 0 ? 1 : 2 * moUser.BeamBrightIndex))
     return 1 if moUser.BeamBrightIndex == 0 else (1 / (2 * moUser.BeamBrightIndex))
 
+def UpdateVolume():
+    global moUser
+    global moMixer
+    if (moUser.Volume == 0):
+        decLevel = 1
+    # this ensures last setting causes full mute
+    elif (moUser.Volume == (len(MenuOptions.Volume) - 1)):
+        decLevel = 0
+    else:
+        decLevel = 1 - ((1 / len(MenuOptions.Volume)) * moUser.Volume)
+    # for nInt in range(len(moMixer.voice) - 1):
+    #    moMixer.voice[nInt].level = decLevel
+    moMixer.voice[0].level = decLevel
+
+def PlaySound(oSound, bStop=False, bLoop=False):
+    global moMixer
+    global moI2SAudio
+    if bStop is True:
+        moI2SAudio.stop()
+        moMixer.voice[0].stop()
+    moI2SAudio.play(moMixer)
+    moMixer.voice[0].play(oSound, loop=bLoop)
+
 def CheckSleep():
     # need to write current settings to a file
     # and modify startup to pull from this file
@@ -784,10 +822,16 @@ def CheckSleep():
     global mdecBtnTime
     global moSettingRow
     global moRGBBlack
+    global moI2SAudio
+    global moMixer
     if ((time.monotonic() - mdecBtnTime) > mdecSleepMax):
+        # fade these to black?
         moSettingRow.fill(moRGBBlack)
         moSettingRow.write()
         print("sleep mode triggered: " + str(time.monotonic()))
+        # play shutdown sound?
+        moMixer.voice[0].stop()
+        moI2SAudio.stop()
         alarm.exit_and_deep_sleep_until_alarms(moPinAlarmL, moPinAlarmR, moPinAlarmT)
 
 # sound effect output via mp3 or wav playback to a speaker.
@@ -854,17 +898,18 @@ while True:
         if btn1.fell or btn2.fell or btnTrigger.fell or btn1.rose or btn2.rose or btnTrigger.rose:
             mdecBtnTime = time.monotonic()
             StopFiring()
-            moI2SAudio.stop()
-            time.sleep(0.2)
-            moI2SAudio.play(moSettingSnd)
+            # moI2SAudio.stop()
+            # time.sleep(0.2)
+            # moI2SAudio.play(moSettingSnd)
+            PlaySound(moSettingSnd, True)
             StopAutofire()
-            pass
         RunAutofire()
     # overload
     elif moActiveMode == 4:
         if btn1.rose or btn2.rose or btnTrigger.rose:
             mdecBtnTime = time.monotonic()
-            moI2SAudio.play(moSettingSnd)
+            # moI2SAudio.play(moSettingSnd)
+            PlaySound(moSettingSnd, True)
             StopOverload()
         RunOverload()
     # default to normal
@@ -875,7 +920,8 @@ while True:
             # disable overload mode if this is pressed?
             # start firing sound, warmup beam leds
             mdecStartFiringTime = time.monotonic()
-            moI2SAudio.play(moFireWarmSnd)
+            # moI2SAudio.play(moFireWarmSnd)
+            PlaySound(moFireWarmSnd)
             StartFiring(True)
         if btnTrigger.rose:
             mdecBtnTime = time.monotonic()
@@ -894,7 +940,8 @@ while True:
             nBtn1DownTime = time.monotonic() - btn1Down
             if nBtn1DownTime < 2:
                 # decrement setting if under 2 sec press
-                moI2SAudio.play(moSettingSnd)
+                PlaySound(moSettingSnd)
+                # moI2SAudio.play(moSettingSnd)
                 # while moI2SAudio.playing():
                 #    pass
                 SettingDecrease(1)
@@ -905,7 +952,8 @@ while True:
             mdecBtnTime = time.monotonic()
             nBtn2DownTime = time.monotonic() - btn2Down
             if nBtn2DownTime < 2:
-                moI2SAudio.play(moSettingSnd)
+                # moI2SAudio.play(moSettingSnd)
+                PlaySound(moSettingSnd)
                 SettingIncrease(1)
             else:
                 if not IS_TYPE_ONE_PHASER and mnIntensitySetting == 15:
