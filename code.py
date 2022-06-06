@@ -31,6 +31,8 @@ SETTING_SND_FILE = "adjust.wav"
 FIRELOOP_SND_FILE = "firingloop.wav"
 FIREWARM_SND_FILE = "warmup.wav"
 FIREDOWN_SND_FILE = "cooldown.wav"
+OVERLOAD_SND_FILE = "overload.wav"
+EXPLOSION_SND_FILE = "explosion.wav"
 BTN_LEFT = board.TX
 BTN_RIGHT = board.RX
 BTN_TRIGGER = board.MOSI
@@ -73,11 +75,16 @@ moSettingSoundFile = open(SETTING_SND_FILE, "rb")
 moFiringLoopFile = open(FIRELOOP_SND_FILE, "rb")
 moFireWarmFile = open(FIREWARM_SND_FILE, "rb")
 moFireDownFile = open(FIREDOWN_SND_FILE, "rb")
+moExplosionFile = open(EXPLOSION_SND_FILE, "rb")
+moOverloadFile = open(OVERLOAD_SND_FILE, "rb")
 moSettingSnd = audiocore.WaveFile(moSettingSoundFile)
 moFireLoopSnd = audiocore.WaveFile(moFiringLoopFile)
 moFireWarmSnd = audiocore.WaveFile(moFireWarmFile)
 moFireDownSnd = audiocore.WaveFile(moFireDownFile)
+moOverloadSnd = audiocore.WaveFile(moOverloadFile)
+moExplosionSnd = audiocore.WaveFile(moExplosionFile)
 mnFireWarmSndLength = 1.25
+mnOvldSndLength = 0.2
 mdFireLEDLength = 0.18
 mnFireWarmStep = 0
 
@@ -407,6 +414,9 @@ def RunOverload():
     global moPinAlarmR
     global moPinAlarmT
     global mnCurrOverFrame
+    global moOverloadSnd
+    global moExplosionSnd
+    global mnOvldSndLength
 
     # global moActiveMode
     # need to flash all setting LEDs progressively faster
@@ -415,6 +425,9 @@ def RunOverload():
     if ((nNow - mdecOverLastTime > mnOverFrameSpeed) and (mnCurrOverFrame <= mnMaxOverFrame)):
         if (mnCurrOverFrame % 2 == 0):
             moSettingRow.fill(moRGBRed)
+            # play beep if frame speed is slower than length of beep sound file
+            # if (mnOverFrameSpeed > mnOvldSndLength):
+            PlaySound(moOverloadSnd, False, False, False)
         else:
             moSettingRow.fill(moRGBBlack)
         if (mnCurrOverFrame % 8 == 0):
@@ -435,6 +448,9 @@ def RunOverload():
         mdecOverLastTime = nNow
         moSettingRow.fill(moRGBBlack)
         moSettingRow.write()
+        # wait for sound to finish playing before sending board to sleep
+        PlaySound(moExplosionSnd, True, False, True)
+        # time.sleep(5)
         # go to sleep mode
         alarm.exit_and_deep_sleep_until_alarms(moPinAlarmL, moPinAlarmR, moPinAlarmT)
 
@@ -803,7 +819,7 @@ def UpdateVolume():
     #    moMixer.voice[nInt].level = decLevel
     moMixer.voice[0].level = decLevel
 
-def PlaySound(oSound, bStop=False, bLoop=False):
+def PlaySound(oSound, bStop=False, bLoop=False, bBlock=False):
     global moMixer
     global moI2SAudio
     if bStop is True:
@@ -811,6 +827,9 @@ def PlaySound(oSound, bStop=False, bLoop=False):
         moMixer.voice[0].stop()
     moI2SAudio.play(moMixer)
     moMixer.voice[0].play(oSound, loop=bLoop)
+    if bBlock is True:
+        while moMixer.playing:
+            pass
 
 def CheckSleep():
     # need to write current settings to a file
