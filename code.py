@@ -440,17 +440,16 @@ def RunOverload():
         # to-do:
         # play explosion sound
         moSettingRow.fill(moRGBRed)
-        moSettingRow.write()
-        # sleep until explosion sound plays
-        time.sleep(0.2)
+        moSettingRow.write()        
+        time.sleep(0.2)        
         mnCurrOverFrame = 0
         mnOverFrameSpeed = mnOverFrameSpDef
         mdecOverLastTime = nNow
         moSettingRow.fill(moRGBBlack)
         moSettingRow.write()
+        time.sleep(0.2)
         # wait for sound to finish playing before sending board to sleep
         PlaySound(moExplosionSnd, True, False, True)
-        # time.sleep(5)
         # go to sleep mode
         alarm.exit_and_deep_sleep_until_alarms(moPinAlarmL, moPinAlarmR, moPinAlarmT)
 
@@ -878,7 +877,7 @@ while True:
     # logic to determine mode here
     if ((time.monotonic() - mdecModeTime) > mnModeInterval):
         CheckCharging()
-    if (moUser.SleepTimer == 1 and (time.monotonic() - mdecBtnTime) > mnModeInterval):
+    if (moUser.SleepTimer == 1 and not any(moActiveMode == y for y in (2, 3)) and (time.monotonic() - mdecBtnTime) > mnModeInterval):
         CheckSleep()
 
     # check btn timers for menu invocation
