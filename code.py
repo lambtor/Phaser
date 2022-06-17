@@ -35,6 +35,8 @@ FIREWARM_SND_FILE = "warmup.wav"
 FIREDOWN_SND_FILE = "cooldown.wav"
 OVERLOAD_SND_FILE = "overload.wav"
 EXPLOSION_SND_FILE = "explosion.wav"
+# 0 here is simple blink of highest level LED with rest solid
+# 1 is a "wave" that flows left-right
 CHARGING_STYLE = 0
 BTN_LEFT = board.TX
 BTN_RIGHT = board.RX
