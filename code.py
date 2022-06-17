@@ -15,6 +15,7 @@ import alarm
 # this is for MAX98357A speaker board. drop wav files in main directory of qt py board
 import audiobusio
 import audiomixer
+from analogio import AnalogIn
 
 # OK OMFG mu editor has a max of 88 characters per line of code
 # ---------------------------------------------------------------------------------------
@@ -25,6 +26,7 @@ import audiomixer
 IS_TYPE_ONE_PHASER = True
 SETTING_LED_PIN = board.A1
 BEAM_LED_PIN = board.A0
+BATTERY_PIN = board.A2
 # if using stemma speaker board, this MIGHT use pin SDA1?
 # only 3 pins connected when using stemma speaker board, so maybez
 SETTING_SND_FILE = "adjust.wav"
@@ -33,6 +35,7 @@ FIREWARM_SND_FILE = "warmup.wav"
 FIREDOWN_SND_FILE = "cooldown.wav"
 OVERLOAD_SND_FILE = "overload.wav"
 EXPLOSION_SND_FILE = "explosion.wav"
+CHARGING_STYLE = 0
 BTN_LEFT = board.TX
 BTN_RIGHT = board.RX
 BTN_TRIGGER = board.MOSI
@@ -554,6 +557,7 @@ def CheckCharging():
 
 def DisableCharging():
     global moSettingRow
+    global moRGBBlack
     moSettingRow.brightness = GetSettingBrightnessLevel()
     moSettingRow.fill(moRGBBlack)
     moSettingRow.show()
@@ -565,47 +569,71 @@ def RunChargingMode():
     global mdecChargingFrameDelay
     global moSettingRow
     global moRGBStrength
+    global moRGBBlack
     global mnSettingLEDMax
     global mnChargingLastTime
     global IS_TYPE_ONE_PHASER
     nFade = 2
-    nBattPercentage = 70
+    # change this to pull from a2 pin
+    nBattPercentage = GetBatteryPercent()
     nMaxFrames = mnSettingLEDMax + 4
     nCurrentTime = time.monotonic()
+    nLEDTier = 0
 
-    # if not mbIsCharging or
-    # ((nCurrentTime - mnChargingLastTime) < mdecChargingFrameDelay):
+    # use setting to change charging animation style?
     if ((nCurrentTime - mnChargingLastTime) < mdecChargingFrameDelay):
         return
 
     # to do: modify animation to all solid up to floor(battlvl / leds)
     # and next one above it to flashing or pulsing
-    if mnChargingFrame >= 0 and mnChargingFrame <= mnSettingLEDMax:
-        # draw current "frame" on settings pixels
-        for nIterator3 in range(mnSettingLEDMax - 1):
-            nTemp = int(nBattPercentage / (100 / (mnSettingLEDMax - 1)))
-            if nIterator3 == mnChargingFrame:
-                if nIterator3 <= nTemp:
-                    moSettingRow[nIterator3] = (0, 0, moRGBStrength)
+    # when charging style is 0, simple blink of highest led w/
+    # lower all solid
+    # otherwise, all leds for a "tier" are lit with a pulsing animation
+    if (CHARGING_STYLE == 0):
+        nLEDTier = int(nBattPercentage / (100 / (mnSettingLEDMax - 1)))
+        for nLED in range(mnSettingLEDMax - 1):
+            if nLED == nLEDTier:
+                if (mnChargingFrame % 2 == 0):
+                    moSettingRow[nLED] = (0, 0, moRGBStrength)
+                else:
+                    moSettingRow[nLED] = moRGBBlack
+            elif nLED < nLEDTier:
+                # nBlueStrength = moRGBStrength
+                moSettingRow[nLED] = (0, 0, moRGBStrength)
+                if not IS_TYPE_ONE_PHASER:
+                    moSettingRow[nLED + 8] = (0, 0, moRGBStrength)
+    else:
+        if mnChargingFrame >= 0 and mnChargingFrame <= mnSettingLEDMax:
+            # draw current "frame" on settings pixels
+            for nIterator3 in range(mnSettingLEDMax - 1):
+                nLEDTier = int(nBattPercentage / (100 / (mnSettingLEDMax - 1)))
+                if nIterator3 == mnChargingFrame:
+                    if nIterator3 <= nLEDTier:
+                        moSettingRow[nIterator3] = (0, 0, moRGBStrength)
+                        if not IS_TYPE_ONE_PHASER:
+                            moSettingRow[nIterator3 + 8] = (0, 0, moRGBStrength)
+                # elif (mnChargingFrame - nIterator3) == 1:
+                #    if nIterator3 <= nLEDTier:
+                #        moSettingRow[nIterator3] = (0, 0, int(moRGBStrength / nFade))
+                # elif (nIterator3 - mnChargingFrame) == 1:
+                #    if nIterator3 <= nLEDTier:
+                #        moSettingRow[nIterator3] = (0, 0, int(moRGBStrength / nFade))
+                elif nIterator3 <= nLEDTier:
+                    nBlueStrength = int((moRGBStrength / nFade) / nFade)
+                    moSettingRow[nIterator3] = (0, 0, nBlueStrength)
                     if not IS_TYPE_ONE_PHASER:
                         moSettingRow[nIterator3 + 8] = (0, 0, moRGBStrength)
-            # elif (mnChargingFrame - nIterator3) == 1:
-            #    if nIterator3 <= nTemp:
-            #        moSettingRow[nIterator3] = (0, 0, int(moRGBStrength / nFade))
-            # elif (nIterator3 - mnChargingFrame) == 1:
-            #    if nIterator3 <= nTemp:
-            #        moSettingRow[nIterator3] = (0, 0, int(moRGBStrength / nFade))
-            elif nIterator3 <= nTemp:
-                nBlueStrength = int((moRGBStrength / nFade) / nFade)
-                moSettingRow[nIterator3] = (0, 0, nBlueStrength)
-                if not IS_TYPE_ONE_PHASER:
-                    moSettingRow[nIterator3 + 8] = (0, 0, moRGBStrength)
-        moSettingRow.show()
+            
+    moSettingRow.show()        
     mnChargingLastTime = nCurrentTime
     mnChargingFrame += 1
     # print(mnChargingFrame)
     if (mnChargingFrame > nMaxFrames):
         mnChargingFrame = 0
+
+def GetBatteryPercent():
+    global BATTERY_PIN
+    return ((6.6 * AnalogIn(BATTERY_PIN)) / 4095)
 
 def ShowMenu():
     # init setting colors using current values
@@ -980,8 +1008,5 @@ while True:
                     StartOverload()
                 elif IS_TYPE_ONE_PHASER is True and mnIntensitySetting == 8:
                     StartOverload()
-    # run battery check once per second to determine if charging
-    # if (time.monotonic() - mnLastBattCheck) > mnBattCheckInterval:
-    #    CheckCharging()
     # need way to keep trigger from causing
     # firing if in a setting adj menu
