@@ -445,8 +445,8 @@ def RunOverload():
         # to-do:
         # play explosion sound
         moSettingRow.fill(moRGBRed)
-        moSettingRow.write()        
-        time.sleep(0.2)        
+        moSettingRow.write()
+        time.sleep(0.2)
         mnCurrOverFrame = 0
         mnOverFrameSpeed = mnOverFrameSpDef
         mdecOverLastTime = nNow
@@ -625,8 +625,8 @@ def RunChargingMode():
                     moSettingRow[nIterator3] = (0, 0, nBlueStrength)
                     if not IS_TYPE_ONE_PHASER:
                         moSettingRow[nIterator3 + 8] = (0, 0, moRGBStrength)
-            
-    moSettingRow.show()        
+
+    moSettingRow.show()
     mnChargingLastTime = nCurrentTime
     mnChargingFrame += 1
     # print(mnChargingFrame)
@@ -832,7 +832,9 @@ def GetBeamBrightnessLevel():
     # if 4 is changed to 2, this could be 1, 1/2, 1/6, 1/8, 1/10
     global moUser
     # return (1 / (moUser.BeamBrightIndex == 0 ? 1 : 2 * moUser.BeamBrightIndex))
-    return 1 if moUser.BeamBrightIndex == 0 else (1 / (2 * moUser.BeamBrightIndex))
+    if moUser.BeamBrightIndex > 4:
+        return 0.1
+    return 1 if moUser.BeamBrightIndex == 0 else (1 - (0.2 * moUser.BeamBrightIndex))
 
 def UpdateVolume():
     global moUser
