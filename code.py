@@ -7,7 +7,7 @@ import audiocore
 from adafruit_debouncer import Debouncer
 import time
 import random
-# import math
+import math
 from userSettings import UserSettings
 from menuOptions import MenuOptions
 import alarm
@@ -98,6 +98,7 @@ moRGBFullRed = (255, 0, 0)
 moRGBBlack = (0, 0, 0)
 moRGBWarn = (128, 0, 128)
 moRGBStrength = 128
+moRGBBattery = (0, 0, 255)
 moUser = UserSettings()
 
 # user settings required for mixer definition of volume. all wav files are 22050 sample rate.
@@ -177,6 +178,8 @@ mdecAutoFlashDelay = 0.25
 mdecAutoStart = 0.0
 mdecAutoBeamStart = 0.0
 mdecAutoBeamEnd = 0.0
+moBatteryRead = AnalogIn(BATTERY_PIN)
+mbBatteryShown = False
 
 def ButtonRead(pin):
     io = digitalio.DigitalInOut(pin)
@@ -543,6 +546,7 @@ def StopAutofire():
 def CheckCharging():
     # if charging mode is active, run charging mode
     global moActiveMode
+    # moBatteryRead 
     # voltage over threshold means connected to usb
     # anytime usb connected, battery is charging
     # if (voltage > maximum)
@@ -556,6 +560,37 @@ def CheckCharging():
     # moActiveMode = 0
     # DisableCharging()
     pass
+    
+def ShowBattery():
+    global moSettingRow
+    global moRGBBlack
+    global moRGBBattery
+    blinkLength = 0.4
+    blinkCount = 10
+    # print(GetVoltage())
+    decCurrentVoltage = min(max(GetVoltage(), 3.2), 4.2)
+    # print(decCurrentVoltage)
+    nCurrentPower = int(map_range(decCurrentVoltage, 3.2, 4.2, 0.0, 8.0))
+    print(nCurrentPower)
+    bIsBlinking = False
+    for nCount in range(blinkCount):
+        if (not bIsBlinking):
+            for nSettingLED in range(nCurrentPower):
+                moSettingRow[nSettingLED] = moRGBBattery
+        else:
+            moSettingRow.fill(moRGBBlack)
+        moSettingRow.write()
+        time.sleep(blinkLength)
+        bIsBlinking = not bIsBlinking   
+    
+def GetVoltage():
+    global moBatteryRead
+    # this should be an approx 3.2 - 4.8
+    # print((moBatteryRead.value * 6.6) / 65536)
+    return ((moBatteryRead.value * 6.6) / 65536)
+    
+def map_range(s, a1, a2, b1, b2):
+    return  math.ceil(b1 + ((s - a1) * (b2 - b1) / (a2 - a1)))
 
 def DisableCharging():
     global moSettingRow
@@ -577,7 +612,8 @@ def RunChargingMode():
     global IS_TYPE_ONE_PHASER
     nFade = 2
     # change this to pull from a2 pin
-    nBattPercentage = GetBatteryPercent()
+    nBattPercentage = 0
+    # GetBatteryPercent()
     nMaxFrames = mnSettingLEDMax + 4
     nCurrentTime = time.monotonic()
     nLEDTier = 0
@@ -633,9 +669,9 @@ def RunChargingMode():
     if (mnChargingFrame > nMaxFrames):
         mnChargingFrame = 0
 
-def GetBatteryPercent():
-    global BATTERY_PIN
-    return ((6.6 * AnalogIn(BATTERY_PIN)) / 4095)
+# def GetBatteryPercent():
+# global BATTERY_PIN
+# return ((6.6 * AnalogIn(BATTERY_PIN)) / 4095)
 
 def ShowMenu():
     # init setting colors using current values
@@ -905,10 +941,15 @@ while True:
     btn1.update()
     btn2.update()
     btnTrigger.update()
+    
+    if (not mbBatteryShown):
+        ShowBattery()
+        mbBatteryShown = True
+        UpdateIntensity()
 
     # logic to determine mode here
-    if ((time.monotonic() - mdecModeTime) > mnModeInterval):
-        CheckCharging()
+    # if ((time.monotonic() - mdecModeTime) > mnModeInterval):
+    #    CheckCharging()
     if (moUser.SleepTimer == 1 and not any(moActiveMode == y for y in (2, 3)) and (time.monotonic() - mdecBtnTime) > mnModeInterval):
         CheckSleep()
 
