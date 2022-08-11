@@ -546,7 +546,7 @@ def StopAutofire():
 def CheckCharging():
     # if charging mode is active, run charging mode
     global moActiveMode
-    # moBatteryRead 
+    # moBatteryRead
     # voltage over threshold means connected to usb
     # anytime usb connected, battery is charging
     # if (voltage > maximum)
@@ -560,7 +560,7 @@ def CheckCharging():
     # moActiveMode = 0
     # DisableCharging()
     pass
-    
+
 def ShowBattery():
     global moSettingRow
     global moRGBBlack
@@ -581,14 +581,14 @@ def ShowBattery():
             moSettingRow.fill(moRGBBlack)
         moSettingRow.write()
         time.sleep(blinkLength)
-        bIsBlinking = not bIsBlinking   
-    
+        bIsBlinking = not bIsBlinking
+
 def GetVoltage():
     global moBatteryRead
     # this should be an approx 3.2 - 4.8
     # print((moBatteryRead.value * 6.6) / 65536)
     return ((moBatteryRead.value * 6.6) / 65536)
-    
+
 def map_range(s, a1, a2, b1, b2):
     return  math.ceil(b1 + ((s - a1) * (b2 - b1) / (a2 - a1)))
 
@@ -921,6 +921,23 @@ def CheckSleep():
         moI2SAudio.stop()
         alarm.exit_and_deep_sleep_until_alarms(moPinAlarmL, moPinAlarmR, moPinAlarmT)
 
+def GoToSleep():
+    global moPinAlarmL
+    global moPinAlarmR
+    global moPinAlarmT
+    global moSettingRow
+    global moRGBBlack
+    global moI2SAudio
+    global moMixer
+    # fade these to black?
+    moSettingRow.fill(moRGBBlack)
+    moSettingRow.write()
+    print("sleep mode forced: " + str(time.monotonic()))
+    # play shutdown sound?
+    moMixer.voice[0].stop()
+    moI2SAudio.stop()
+    alarm.exit_and_deep_sleep_until_alarms(moPinAlarmL, moPinAlarmR, moPinAlarmT)
+
 # sound effect output via mp3 or wav playback to a speaker.
 # firing sound mapped to trigger press. split between "startup" and "active" sounds
 # loop "active" for as long as trigger pressed
@@ -941,7 +958,7 @@ while True:
     btn1.update()
     btn2.update()
     btnTrigger.update()
-    
+
     if (not mbBatteryShown):
         ShowBattery()
         mbBatteryShown = True
@@ -1039,6 +1056,8 @@ while True:
                 #    pass
                 SettingDecrease(1)
                 # print(mnIntensitySetting)
+            elif nBtn1DownTime >= 3:
+                GoToSleep()
         if btn2.fell:
             btn2Down = time.monotonic()
         if btn2.rose:
