@@ -16,6 +16,8 @@ import alarm
 import audiobusio
 import audiomixer
 from analogio import AnalogIn
+import microcontroller
+import json
 
 # OK OMFG mu editor has a max of 88 characters per line of code
 # ---------------------------------------------------------------------------------------
@@ -67,13 +69,6 @@ else:
     mnSettingLEDMax = 17
 mnBeamLEDCount = 7
 
-# try:
-#    from audioio import AudioOut
-# except ImportError:
-#    try:
-#        from audiopwmio import PWMAudioOut as AudioOut
-#    except ImportError:
-#        pass
 moI2SAudio = audiobusio.I2SOut(board.SDA1, board.SCL1, board.SCK)
 
 moSettingSoundFile = open(SETTING_SND_FILE, "rb")
@@ -100,6 +95,14 @@ moRGBWarn = (128, 0, 128)
 moRGBStrength = 128
 moRGBBattery = (0, 0, 255)
 moUser = UserSettings()
+
+try:
+    with open("activeSettings.json", "r") as actSetting:
+		moUser = json.load(fp=actSetting, parse_int=True)
+        # oJson = actSetting.read()
+except OSError as oErr:
+    sTemp = oErr.args[0]
+    time.sleep(0.1)
 
 # user settings required for mixer definition of volume. all wav files are 22050 sample rate.
 # if you use a different sample rate, use same one for all sound files and specify it here
