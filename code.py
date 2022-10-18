@@ -16,8 +16,6 @@ import alarm
 import audiobusio
 import audiomixer
 from analogio import AnalogIn
-import microcontroller
-import json
 
 # OK OMFG mu editor has a max of 88 characters per line of code
 # ---------------------------------------------------------------------------------------
@@ -29,6 +27,7 @@ IS_TYPE_ONE_PHASER = True
 SETTING_LED_PIN = board.A1
 BEAM_LED_PIN = board.A0
 BATTERY_PIN = board.A2
+BEAM_LASER_PIN = board.A3
 # if using stemma speaker board, this MIGHT use pin SDA1?
 # only 3 pins connected when using stemma speaker board, so maybez
 SETTING_SND_FILE = "adjust.wav"
@@ -69,6 +68,13 @@ else:
     mnSettingLEDMax = 17
 mnBeamLEDCount = 7
 
+# try:
+#    from audioio import AudioOut
+# except ImportError:
+#    try:
+#        from audiopwmio import PWMAudioOut as AudioOut
+#    except ImportError:
+#        pass
 moI2SAudio = audiobusio.I2SOut(board.SDA1, board.SCL1, board.SCK)
 
 moSettingSoundFile = open(SETTING_SND_FILE, "rb")
@@ -96,14 +102,6 @@ moRGBStrength = 128
 moRGBBattery = (0, 0, 255)
 moUser = UserSettings()
 
-try:
-    with open("activeSettings.json", "r") as actSetting:
-		moUser = json.load(fp=actSetting, parse_int=True)
-        # oJson = actSetting.read()
-except OSError as oErr:
-    sTemp = oErr.args[0]
-    time.sleep(0.1)
-
 # user settings required for mixer definition of volume. all wav files are 22050 sample rate.
 # if you use a different sample rate, use same one for all sound files and specify it here
 moMixer = audiomixer.Mixer(voice_count=1, sample_rate=22050, channel_count=1, bits_per_sample=16, samples_signed=True)
@@ -119,6 +117,9 @@ mpinBoardLed = neopixel.NeoPixel(board.NEOPIXEL, 1, brightness=0.3, auto_write=T
 # mpinBoardLed.brightness = 0.3
 mpinBoardLed.fill((112, 128, 0))
 mpinBoardLed.write()
+
+moLaser = digitalio.DigitalInOut(BEAM_LASER_PIN)
+moLaser.direction = digitalio.Direction.OUTPUT
 
 # 6-8 status leds in a single row, or 16 split across 2 rows
 # setting lowest value is 0, max is count of setting LEDs?
@@ -329,7 +330,9 @@ def StartFiring(bIsInit):
         if (nRand < (BEAM_FLICKER_RATE * 10)):
             moBeamRow.fill(oColorAlt)
             moBeamRow.show()
+            moLaser.value = False
         else:
+            moLaser.value = True
             moBeamRow.fill(oColor)
             moBeamRow.show()
         mnWarmLastTime = time.monotonic()
@@ -352,6 +355,7 @@ def RunFiring(bInitLoop):
     global mnBeamLEDCount
     global mdFiringLastTime
     global moUser
+    global moLaser
     if (bInitLoop is True):
         mbIsFiring = True
         # moI2SAudio.play(moFireLoopSnd, loop=True)
@@ -368,10 +372,12 @@ def RunFiring(bInitLoop):
             # moBeamRow.fill(moRGBBlack)
             moBeamRow.fill(MenuOptions.FreqSup[moUser.Frequency])
             moBeamRow.show()
+            moLaser.value = False
         else:
             # moBeamRow.fill(MenuOptions.Frequency[moUser.Frequency])
             moBeamRow.fill(moRGBRed)
             moBeamRow.show()
+            moLaser.value = True
         mdFiringLastTime = time.monotonic()
 
 def StopFiring():
@@ -381,6 +387,7 @@ def StopFiring():
     global moI2SAudio
     global mnFireWarmStep
     global moFireDownSnd
+    global moLaser
     # run cooldown sound
     # moI2SAudio.stop()
     # moI2SAudio.play(moFireDownSnd, loop=False)
@@ -399,6 +406,7 @@ def StopFiring():
     mbIsWarming = False
     moBeamRow.fill(moRGBBlack)
     moBeamRow.show()
+    moLaser.value = False
 
 def StartOverload():
     global moActiveMode
@@ -591,7 +599,7 @@ def GetVoltage():
     # this should be an approx 3.2 - 4.8
     # print((moBatteryRead.value * 6.6) / 65536)
     # apparently, previous versions used 3.3 as battery reference, but now this is 3.6
-	# for this reason, if you use 3.3 with a newer version of firmware, 
+	# for this reason, if you use 3.3 with a newer version of firmware,
     # batt % will show 60 when it should be 100. 3.6 * 2 = 7.2
     return ((moBatteryRead.value * 7.2) / 65536)
 
