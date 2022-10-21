@@ -48,11 +48,11 @@ MENUIDX_FREQ = 0
 MENUIDX_AUTO = 1
 MENUIDX_VOL = 2
 MENUIDX_SLEEP = 3
-MENUIDX_ST = 4
+MENUIDX_STG = 4
 MENUIDX_BEAM = 5
 MENUIDX_OVLD = 6
 MENUIDX_EXIT = 7
-
+    
 # number from 0-1 (you'd never want 1, as that'd be ALWAYS OFF
 BEAM_FLICKER_RATE = 0.1
 BEAM_FPS = 90
@@ -101,6 +101,17 @@ moRGBWarn = (128, 0, 128)
 moRGBStrength = 128
 moRGBBattery = (0, 0, 255)
 moUser = UserSettings()
+
+# set values here to persist between "sleep" periods
+# check if alarm is none
+if (alarm.wake_alarm is not None):
+    # pull these values from sleep_memory
+    if (alarm.sleep_memory is True):
+        print("loading settings from sleep memory")
+        moUser.Frequency = alarm.sleep_memory[MENUIDX_FREQ]
+        moUser.Volume = alarm.sleep_memory[MENUIDX_VOL]
+        moUser.BeamBrightIndex = alarm.sleep_memory[MENUIDX_BEAM]
+        moUser.SettingBrightIndex = alarm.sleep_memory[MENUIDX_STG]
 
 # user settings required for mixer definition of volume. all wav files are 22050 sample rate.
 # if you use a different sample rate, use same one for all sound files and specify it here
@@ -599,12 +610,12 @@ def GetVoltage():
     # this should be an approx 3.2 - 4.8
     # print((moBatteryRead.value * 6.6) / 65536)
     # apparently, previous versions used 3.3 as battery reference, but now this is 3.6
-	# for this reason, if you use 3.3 with a newer version of firmware,
+    # for this reason, if you use 3.3 with a newer version of firmware,
     # batt % will show 60 when it should be 100. 3.6 * 2 = 7.2
     return ((moBatteryRead.value * 7.2) / 65536)
 
 def map_range(s, a1, a2, b1, b2):
-    return  math.ceil(b1 + ((s - a1) * (b2 - b1) / (a2 - a1)))
+    return math.ceil(b1 + ((s - a1) * (b2 - b1) / (a2 - a1)))
 
 def DisableCharging():
     global moSettingRow
@@ -766,6 +777,9 @@ def NavMenu(nIndex):
     time.sleep(0.1)
     # moI2SAudio.play(moSettingSnd)
     PlaySound(moSettingSnd)
+    
+def UpdateSleepMemory(nMemIndex, oMemValue):
+    alarm.sleep_memory[nMemIndex] = oMemValue
 
 def UpdateMenuSetting():
     global mnMenuIndex
@@ -774,6 +788,7 @@ def UpdateMenuSetting():
     # most menu selections need to hide all other columns
     # flash current value, change color to "NEW" value
     # set new value, flash "NEW" value twice
+    # store all new settings to alarm memory, using same indexes as json
     # then return to menu
     if (mnMenuIndex == MENUIDX_EXIT):
         mnMenuIndex = 0
@@ -787,15 +802,16 @@ def UpdateMenuSetting():
         return
     elif (mnMenuIndex == MENUIDX_FREQ):
         nFreq = moUser.Frequency
-        # freq for modulation uses different flicker backup color
+        # freq for modulation uses different flicker backup color (default black)
         if (nFreq < (len(MenuOptions.Frequency) - 1)):
             moUser.Frequency += 1
             moUser.FreqSup += 1
         else:
             moUser.Frequency = 0
             moUser.FreqSup = 0
-        AnimateSettingChange(MenuOptions.Frequency[nFreq], MenuOptions.Frequency[moUser.Frequency])
-        # play acknowledge sound
+        AnimateSettingChange(MenuOptions.Frequency[nFreq], MenuOptions.Frequency[moUser.Frequency])        
+        # Save setting to carry between sleep / wake
+        UpdateSleepMemory(MENUIDX_FREQ, moUser.Frequency)
     elif (mnMenuIndex == MENUIDX_SLEEP):
         nTimeout = moUser.SleepTimer
         if (nTimeout < (len(MenuOptions.SleepTimer) - 1)):
@@ -811,6 +827,8 @@ def UpdateMenuSetting():
             moUser.Volume = 0
         # play acknowledge sound at old volume
         AnimateSettingChange(MenuOptions.Volume[nCurrVol], MenuOptions.Volume[moUser.Volume])
+        # Save setting to carry between sleep / wake
+        UpdateSleepMemory(MENUIDX_VOL, moUser.Volume)
         # play acknowledge sound at new volume
         UpdateVolume()
         # PlaySound(moSettingSnd)
@@ -822,7 +840,9 @@ def UpdateMenuSetting():
             moUser.BeamBrightIndex = 0
         AnimateSettingChange(MenuOptions.BeamBrightness[nBeam], MenuOptions.BeamBrightness[moUser.BeamBrightIndex])
         # update brightness for beam row - fade in beam row?
-    elif (mnMenuIndex == MENUIDX_ST):
+        # Save setting to carry between sleep / wake
+        UpdateSleepMemory(MENUIDX_BEAM, moUser.BeamBrightIndex)
+    elif (mnMenuIndex == MENUIDX_STG):
         nSetting = moUser.SettingBrightIndex
         if (nSetting < (len(MenuOptions.SettingBrightness) - 1)):
             moUser.SettingBrightIndex += 1
@@ -831,6 +851,8 @@ def UpdateMenuSetting():
         moSettingRow.brightness = GetSettingBrightnessLevel()
         AnimateSettingChange(MenuOptions.SettingBrightness[nSetting], MenuOptions.SettingBrightness[moUser.SettingBrightIndex])
         # update brightness for setting row to new factor
+        # Save setting to carry between sleep / wake
+        UpdateSleepMemory(MENUIDX_STG, moUser.SettingBrightIndex)
     # return to menu
     ShowMenu()
 
@@ -866,7 +888,7 @@ def GetMenuIndexColor(nIndex):
     arMenu[MENUIDX_VOL] = MenuOptions.Volume[moUser.Volume]
     arMenu[MENUIDX_SLEEP] = MenuOptions.SleepTimer[moUser.SleepTimer]
     arMenu[MENUIDX_BEAM] = MenuOptions.BeamBrightness[moUser.BeamBrightIndex]
-    arMenu[MENUIDX_ST] = MenuOptions.SettingBrightness[moUser.SettingBrightIndex]
+    arMenu[MENUIDX_STG] = MenuOptions.SettingBrightness[moUser.SettingBrightIndex]
     arMenu[MENUIDX_OVLD] = MenuOptions.Overload
     arMenu[MENUIDX_EXIT] = MenuOptions.Exit
     return arMenu[nIndex]
