@@ -52,7 +52,7 @@ MENUIDX_STG = 4
 MENUIDX_BEAM = 5
 MENUIDX_OVLD = 6
 MENUIDX_EXIT = 7
-    
+
 # number from 0-1 (you'd never want 1, as that'd be ALWAYS OFF
 BEAM_FLICKER_RATE = 0.1
 BEAM_FPS = 90
@@ -777,7 +777,7 @@ def NavMenu(nIndex):
     time.sleep(0.1)
     # moI2SAudio.play(moSettingSnd)
     PlaySound(moSettingSnd)
-    
+
 def UpdateSleepMemory(nMemIndex, oMemValue):
     alarm.sleep_memory[nMemIndex] = oMemValue
 
@@ -809,7 +809,7 @@ def UpdateMenuSetting():
         else:
             moUser.Frequency = 0
             moUser.FreqSup = 0
-        AnimateSettingChange(MenuOptions.Frequency[nFreq], MenuOptions.Frequency[moUser.Frequency])        
+        AnimateSettingChange(MenuOptions.Frequency[nFreq], MenuOptions.Frequency[moUser.Frequency])
         # Save setting to carry between sleep / wake
         UpdateSleepMemory(MENUIDX_FREQ, moUser.Frequency)
     elif (mnMenuIndex == MENUIDX_SLEEP):
