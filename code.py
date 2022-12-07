@@ -23,11 +23,34 @@ from analogio import AnalogIn
 # to behave for your hardware
 # true or false here. False means program is for a type 2
 # A3 is for laser itself. TX might need to be used for beam neopixels.
+# option to disable flicker, or change between flicker from red+color to color+black
+# or color change a random in the beam chain
 IS_TYPE_ONE_PHASER = True
 SETTING_LED_PIN = board.A1
 BEAM_LED_PIN = board.A0
 BATTERY_PIN = board.A2
 BEAM_LASER_PIN = board.A3
+AUDIO_CLOCK_PIN = board.SDA1
+AUDIO_WORD_PIN = board.SCL1
+AUDIO_DATA_PIN = board.SCK
+BTN_LEFT = board.TX
+BTN_RIGHT = board.RX
+BTN_TRIGGER = board.MOSI
+
+# spacecat board pin layout
+"""
+SETTING_LED_PIN = board.A2
+BEAM_LED_PIN = board.TX
+BATTERY_PIN = board.A0
+BEAM_LASER_PIN = board.A3
+AUDIO_CLOCK_PIN = board.SDA
+AUDIO_WORD_PIN = board.SCL
+AUDIO_DATA_PIN = board.SCK
+BTN_LEFT = board.MOSI
+BTN_RIGHT = board.MISO
+BTN_TRIGGER = board.RX
+"""
+
 # if using stemma speaker board, this MIGHT use pin SDA1?
 # only 3 pins connected when using stemma speaker board, so maybez
 SETTING_SND_FILE = "adjust.wav"
@@ -39,9 +62,6 @@ EXPLOSION_SND_FILE = "explosion.wav"
 # 0 here is simple blink of highest level LED with rest solid
 # 1 is a "wave" that flows left-right
 CHARGING_STYLE = 0
-BTN_LEFT = board.TX
-BTN_RIGHT = board.RX
-BTN_TRIGGER = board.MOSI
 # menu settings. 8 total LEDs, so if you want these re-ordered,
 # set their places here. ALL these need to be unique integers < 8
 MENUIDX_FREQ = 0
@@ -56,7 +76,6 @@ MENUIDX_EXIT = 7
 # number from 0-1 (you'd never want 1, as that'd be ALWAYS OFF
 BEAM_FLICKER_RATE = 0.1
 BEAM_FPS = 90
-
 # --------
 # current active device settings - do these need to persist across power cycles?
 
@@ -68,15 +87,7 @@ else:
     mnSettingLEDMax = 17
 mnBeamLEDCount = 7
 
-# try:
-#    from audioio import AudioOut
-# except ImportError:
-#    try:
-#        from audiopwmio import PWMAudioOut as AudioOut
-#    except ImportError:
-#        pass
-moI2SAudio = audiobusio.I2SOut(board.SDA1, board.SCL1, board.SCK)
-
+moI2SAudio = audiobusio.I2SOut(AUDIO_CLOCK_PIN, AUDIO_WORD_PIN, AUDIO_DATA_PIN)
 moSettingSoundFile = open(SETTING_SND_FILE, "rb")
 moFiringLoopFile = open(FIRELOOP_SND_FILE, "rb")
 moFireWarmFile = open(FIREWARM_SND_FILE, "rb")
@@ -120,12 +131,7 @@ moMixer = audiomixer.Mixer(voice_count=1, sample_rate=22050, channel_count=1, bi
 # all comments are done via pound sign,
 # and MUST have a space immediately after the pound sign - this is some vb6 shit.
 # gtfo with your variable types! this is PYTHON! everything's interpolated!
-# long-term: left handed mode that can be toggled on/off via both setting button press?
-# mpinBoardLed = digitalio.DigitalInOut(board.LED)
-# board.BUTTON
 mpinBoardLed = neopixel.NeoPixel(board.NEOPIXEL, 1, brightness=0.3, auto_write=True)
-# mpinBoardLed = neopixel.NeoPixel(board.NEOPIXEL, 1)
-# mpinBoardLed.brightness = 0.3
 mpinBoardLed.fill((112, 128, 0))
 mpinBoardLed.write()
 
@@ -304,6 +310,7 @@ def StartFiring(bIsInit):
     global moUser
     global moRGBBlack
     global moRGBRed
+    global moLaser
     nFadeSteps = 4
 
     # need to fade in beam WAY faster than warmup sound
@@ -340,12 +347,12 @@ def StartFiring(bIsInit):
         # nRand = int(math.modf(time.monotonic())[0] * 10)
         if (nRand < (BEAM_FLICKER_RATE * 10)):
             moBeamRow.fill(oColorAlt)
-            moBeamRow.show()
+            moBeamRow.write()
             moLaser.value = False
         else:
             moLaser.value = True
             moBeamRow.fill(oColor)
-            moBeamRow.show()
+            moBeamRow.write()
         mnWarmLastTime = time.monotonic()
     decTimeRef = time.monotonic() - mdecStartFiringTime
     # warming over, set isFiring flag on to hand over to that animation
@@ -376,18 +383,19 @@ def RunFiring(bInitLoop):
     # if (not mbIsFiring and not bInitLoop) or mbInMenu is True or mbIsCharging is True:
     if (not mbIsFiring and not bInitLoop):
         return
+
     if ((time.monotonic() - mdFiringLastTime) >= (1 / BEAM_FPS)):
         nRand = random.randint(0, 9)
         # nRand = int(math.modf(time.monotonic())[0] * 10)
         if (nRand < (BEAM_FLICKER_RATE * 10)):
             # moBeamRow.fill(moRGBBlack)
             moBeamRow.fill(MenuOptions.FreqSup[moUser.Frequency])
-            moBeamRow.show()
+            moBeamRow.write()
             moLaser.value = False
         else:
             # moBeamRow.fill(MenuOptions.Frequency[moUser.Frequency])
             moBeamRow.fill(moRGBRed)
-            moBeamRow.show()
+            moBeamRow.write()
             moLaser.value = True
         mdFiringLastTime = time.monotonic()
 
@@ -407,7 +415,7 @@ def StopFiring():
     # while moI2SAudio.playing:
     #    pass
     # moBeamRow.fill(moRGBBlack)
-    # moBeamRow.show()
+    # moBeamRow.write()
     mnFireWarmStep = 0
     if (mbIsWarming is True):
         time.sleep(0.2)
@@ -416,7 +424,7 @@ def StopFiring():
     mbIsFiring = False
     mbIsWarming = False
     moBeamRow.fill(moRGBBlack)
-    moBeamRow.show()
+    moBeamRow.write()
     moLaser.value = False
 
 def StartOverload():
@@ -425,7 +433,7 @@ def StartOverload():
     global moRGBRed
     global mnOverFrameSpeed
     moSettingRow.fill(moRGBRed)
-    moSettingRow.show()
+    moSettingRow.write()
     time.sleep(3)
     moActiveMode = 4
     # play overload warmup sound non-blocking
@@ -488,7 +496,7 @@ def StopOverload():
     global moSettingRow
     moActiveMode = 0
     moSettingRow.fill(moRGBBlack)
-    moSettingRow.show()
+    moSettingRow.write()
     time.sleep(0.2)
     # play wind-down sound?
     UpdateIntensity()
@@ -530,7 +538,7 @@ def RunAutofire():
             UpdateIntensity()
         else:
             moSettingRow.fill(moRGBBlack)
-            moSettingRow.show()
+            moSettingRow.write()
         mbAutoFlashing = not mbAutoFlashing
         mdecAutoFlashTime = time.monotonic()
 
@@ -560,7 +568,7 @@ def StopAutofire():
     global moSettingRow
     moActiveMode = 0
     moSettingRow.fill(moRGBBlack)
-    moSettingRow.show()
+    moSettingRow.write()
     time.sleep(0.3)
     # play cancel sound?
     UpdateIntensity()
@@ -622,7 +630,7 @@ def DisableCharging():
     global moRGBBlack
     moSettingRow.brightness = GetSettingBrightnessLevel()
     moSettingRow.fill(moRGBBlack)
-    moSettingRow.show()
+    moSettingRow.write()
     UpdateIntensity()
 
 def RunChargingMode():
@@ -687,7 +695,7 @@ def RunChargingMode():
                     if not IS_TYPE_ONE_PHASER:
                         moSettingRow[nIterator3 + 8] = (0, 0, moRGBStrength)
 
-    moSettingRow.show()
+    moSettingRow.write()
     mnChargingLastTime = nCurrentTime
     mnChargingFrame += 1
     # print(mnChargingFrame)
@@ -718,7 +726,7 @@ def ShowMenu():
     moSettingRow[MENUIDX_EXIT] = MenuOptions.Exit
     moSettingRow.brightness = GetSettingBrightnessLevel()
     # highlight current hovered option
-    moSettingRow.show()
+    moSettingRow.write()
     mbMenuBtn1Clear = False
     mbMenuBtn2Clear = False
     moActiveMode = 1
@@ -740,7 +748,7 @@ def RunMenu():
             moSettingRow[mnMenuIndex] = GetMenuIndexColor(mnMenuIndex)
         else:
             moSettingRow[mnMenuIndex] = moRGBBlack
-        moSettingRow.show()
+        moSettingRow.write()
         mbMenuIndexLEDOff = not mbMenuIndexLEDOff
         mdecMenuLastFlash = time.monotonic()
 
@@ -773,12 +781,13 @@ def NavMenu(nIndex):
             moSettingRow[nInt] = moRGBBlack
     # moSettingRow[5] = moRGBBlack
     moSettingRow[MENUIDX_EXIT] = MenuOptions.Exit
-    moSettingRow.show()
+    moSettingRow.write()
     time.sleep(0.1)
     # moI2SAudio.play(moSettingSnd)
     PlaySound(moSettingSnd)
 
 def UpdateSleepMemory(nMemIndex, oMemValue):
+    print("updating " + str(nMemIndex) + " : " + str(oMemValue))
     alarm.sleep_memory[nMemIndex] = oMemValue
 
 def UpdateMenuSetting():
@@ -864,19 +873,19 @@ def AnimateSettingChange(oColorOld, oColorNew):
     global moSettingSnd
     # this is blocking - it NEEDS to be for stability
     moSettingRow.fill(moRGBBlack)
-    moSettingRow.show()
+    moSettingRow.write()
     time.sleep(0.1)
     moSettingRow[mnMenuIndex] = oColorOld
-    moSettingRow.show()
+    moSettingRow.write()
     time.sleep(0.2)
     moSettingRow[mnMenuIndex] = oColorNew
-    moSettingRow.show()
+    moSettingRow.write()
     time.sleep(0.5)
     moSettingRow.fill(moRGBBlack)
-    moSettingRow.show()
+    moSettingRow.write()
     time.sleep(0.2)
     moSettingRow[mnMenuIndex] = oColorNew
-    moSettingRow.show()
+    moSettingRow.write()
     # moI2SAudio.play(moSettingSnd)
     time.sleep(0.1)
 
@@ -995,10 +1004,10 @@ while True:
     btn2.update()
     btnTrigger.update()
 
-    if (not mbBatteryShown):
-        ShowBattery()
-        mbBatteryShown = True
-        UpdateIntensity()
+    # if (not mbBatteryShown):
+    #    ShowBattery()
+    #    mbBatteryShown = True
+    #    UpdateIntensity()
 
     # logic to determine mode here
     # if ((time.monotonic() - mdecModeTime) > mnModeInterval):
