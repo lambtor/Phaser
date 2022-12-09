@@ -29,3 +29,14 @@ sound effect volume level<br>
 reset all settings to default<br>
 <br>References:<br>
 https://learn.adafruit.com/mp3-playback-rp2040
+<br>
+<br>
+To-do:
+<ol>
+<li>
+modify flicker behavior to instead randomly set 2 beam chain pixel colors
+</li>
+<li>
+flash battery level when setting down button is held for 2s and intensity already at minimum (in mariner mode)
+</li>
+</ol>
