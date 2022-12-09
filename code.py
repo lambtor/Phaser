@@ -23,8 +23,14 @@ from analogio import AnalogIn
 # to behave for your hardware
 # true or false here. False means program is for a type 2
 # A3 is for laser itself. TX might need to be used for beam neopixels.
-# option to disable flicker, or change between flicker from red+color to color+black
+# option to disable flicker. this will only turn off the flicker of red to black on base frequency.
+# may need a general way to enable a debug mode via buttons to prevent 
+# charging logic when connected to usb power
 # or color change a random in the beam chain
+# if user tries to go below warning shot mode, flash current battery level in settings 3x
+# hit left setting button during charging mode to
+# lambtor prototype pcb layout
+"""
 IS_TYPE_ONE_PHASER = True
 SETTING_LED_PIN = board.A1
 BEAM_LED_PIN = board.A0
@@ -36,9 +42,11 @@ AUDIO_DATA_PIN = board.SCK
 BTN_LEFT = board.TX
 BTN_RIGHT = board.RX
 BTN_TRIGGER = board.MOSI
-
-# spacecat board pin layout
+BEAM_LASER_POLARITY = True
+BEAM_BLACK_FLICKER = True
 """
+
+# spacecat pcb layout
 SETTING_LED_PIN = board.A2
 BEAM_LED_PIN = board.TX
 BATTERY_PIN = board.A0
@@ -49,9 +57,14 @@ AUDIO_DATA_PIN = board.SCK
 BTN_LEFT = board.MOSI
 BTN_RIGHT = board.MISO
 BTN_TRIGGER = board.RX
-"""
+BEAM_LASER_POLARITY = False
+BEAM_BLACK_FLICKER = False
 
-# if using stemma speaker board, this MIGHT use pin SDA1?
+# number from 0-1 (you'd never want 1, as that'd be ALWAYS OFF
+BEAM_FLICKER_RATE = 0.1
+BEAM_FPS = 90
+
+# if using stemma speaker board, this uses pin SDA1
 # only 3 pins connected when using stemma speaker board, so maybez
 SETTING_SND_FILE = "adjust.wav"
 FIRELOOP_SND_FILE = "firingloop.wav"
@@ -73,12 +86,6 @@ MENUIDX_BEAM = 5
 MENUIDX_OVLD = 6
 MENUIDX_EXIT = 7
 
-# number from 0-1 (you'd never want 1, as that'd be ALWAYS OFF
-BEAM_FLICKER_RATE = 0.1
-BEAM_FPS = 90
-# --------
-# current active device settings - do these need to persist across power cycles?
-
 mnIntensitySetting = 0
 # this needs to be 1 more than the total number of actual setting LEDs you have
 if IS_TYPE_ONE_PHASER:
@@ -88,6 +95,9 @@ else:
 mnBeamLEDCount = 7
 
 moI2SAudio = audiobusio.I2SOut(AUDIO_CLOCK_PIN, AUDIO_WORD_PIN, AUDIO_DATA_PIN)
+# use this to destroy the object and free up pins
+# audiobusio.deinit()
+
 moSettingSoundFile = open(SETTING_SND_FILE, "rb")
 moFiringLoopFile = open(FIRELOOP_SND_FILE, "rb")
 moFireWarmFile = open(FIREWARM_SND_FILE, "rb")
@@ -137,6 +147,11 @@ mpinBoardLed.write()
 
 moLaser = digitalio.DigitalInOut(BEAM_LASER_PIN)
 moLaser.direction = digitalio.Direction.OUTPUT
+# pull pin high when PCB is expecting GND to light laser
+if (BEAM_LASER_POLARITY is False):
+    moLaser.value = True
+else:
+    moLaser.value = False
 
 # 6-8 status leds in a single row, or 16 split across 2 rows
 # setting lowest value is 0, max is count of setting LEDs?
@@ -323,8 +338,7 @@ def StartFiring(bIsInit):
         return
 
     # oColor = MenuOptions.Frequency[moUser.Frequency]
-    oColor = moRGBRed
-    oColorAlt = MenuOptions.FreqSup[moUser.Frequency]
+    oColor = moRGBRed    
     oFreqR = oColor[0]
     oFreqG = oColor[1]
     oFreqB = oColor[2]
@@ -343,14 +357,16 @@ def StartFiring(bIsInit):
         return
     # flicker during warmup
     if ((time.monotonic() - mnWarmLastTime) >= (1 / BEAM_FPS)):
+        oColorAlt = MenuOptions.FreqSup[moUser.Frequency]
         nRand = random.randint(0, 9)
         # nRand = int(math.modf(time.monotonic())[0] * 10)
         if (nRand < (BEAM_FLICKER_RATE * 10)):
-            moBeamRow.fill(oColorAlt)
-            moBeamRow.write()
-            moLaser.value = False
+            if ((BEAM_BLACK_FLICKER is True) or (oColorAlt != moRGBBlack)):
+                moBeamRow.fill(oColorAlt)
+                moBeamRow.write()
+            moLaser.value = not BEAM_LASER_POLARITY
         else:
-            moLaser.value = True
+            moLaser.value = BEAM_LASER_POLARITY
             moBeamRow.fill(oColor)
             moBeamRow.write()
         mnWarmLastTime = time.monotonic()
@@ -388,15 +404,16 @@ def RunFiring(bInitLoop):
         nRand = random.randint(0, 9)
         # nRand = int(math.modf(time.monotonic())[0] * 10)
         if (nRand < (BEAM_FLICKER_RATE * 10)):
-            # moBeamRow.fill(moRGBBlack)
-            moBeamRow.fill(MenuOptions.FreqSup[moUser.Frequency])
-            moBeamRow.write()
-            moLaser.value = False
+            oColorAlt = MenuOptions.FreqSup[moUser.Frequency]
+            if ((BEAM_BLACK_FLICKER is True) or (oColorAlt != moRGBBlack)):
+                moBeamRow.fill(oColorAlt)
+                moBeamRow.write()
+            moLaser.value = not BEAM_LASER_POLARITY
         else:
             # moBeamRow.fill(MenuOptions.Frequency[moUser.Frequency])
             moBeamRow.fill(moRGBRed)
             moBeamRow.write()
-            moLaser.value = True
+            moLaser.value = BEAM_LASER_POLARITY
         mdFiringLastTime = time.monotonic()
 
 def StopFiring():
@@ -425,7 +442,7 @@ def StopFiring():
     mbIsWarming = False
     moBeamRow.fill(moRGBBlack)
     moBeamRow.write()
-    moLaser.value = False
+    moLaser.value = not BEAM_LASER_POLARITY
 
 def StartOverload():
     global moActiveMode
