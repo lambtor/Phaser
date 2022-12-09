@@ -32,11 +32,11 @@ https://learn.adafruit.com/mp3-playback-rp2040
 <br>
 <br>
 To-do:
-<ol>
+<ul>
 <li>
 modify flicker behavior to instead randomly set 2 beam chain pixel colors
 </li>
 <li>
 flash battery level when setting down button is held for 2s and intensity already at minimum (in mariner mode)
 </li>
-</ol>
+</ul>
