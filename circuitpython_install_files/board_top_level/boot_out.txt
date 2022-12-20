@@ -1,0 +1,2 @@
+Adafruit CircuitPython 7.2.3 on 2022-03-16; Adafruit QT Py RP2040 with rp2040
+Board ID:adafruit_qtpy_rp2040
