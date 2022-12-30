@@ -719,13 +719,14 @@ def RunChargingMode():
     # otherwise, all leds for a "tier" are lit with a pulsing animation
     if (CHARGING_STYLE == 0):
         nLEDTier = int(nBattPercentage / (100 / (mnSettingLEDMax - 1)))
-        print(str(nLEDTier) + " tier, " + str(nBattPercentage) + " " + str(time.monotonic()))
-        if ((nLEDTier >= (mnSettingLEDMax - 2)) and (nBattPercentage > 95)):
+        # print(str(nLEDTier) + " tier, " + str(nBattPercentage) + " " + str(time.monotonic()))
+        # fill row blue with flashing white final led if battery over 95%
+        if (nBattPercentage > 95):
             moSettingRow.fill((0, 0, moRGBStrength))
             if (mnChargingFrame % 2 == 0):
-                moSettingRow[nLEDTier - 1] = (moRGBStrength, moRGBStrength, moRGBStrength)
+                moSettingRow[mnSettingLEDMax - 2] = (moRGBStrength, moRGBStrength, moRGBStrength)
             else:
-                moSettingRow[nLEDTier - 1] = moRGBBlack
+                moSettingRow[mnSettingLEDMax - 2] = moRGBBlack
         else:
             for nLED in range(mnSettingLEDMax - 1):
                 if nLED == nLEDTier:
