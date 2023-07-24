@@ -27,13 +27,19 @@ from analogio import AnalogIn
 IS_TYPE_ONE_PHASER = True
 # propmaker board pinout will differ
 SETTING_LED_PIN = board.TX
+# BEAM_LED_PIN = board.D6
 BEAM_LED_PIN = board.EXTERNAL_NEOPIXELS
 BATTERY_PIN = board.A0
 BEAM_LASER_PIN = board.D5
+AUDIO_CLOCK_PIN = board.I2S_BIT_CLOCK
+AUDIO_DATA_PIN = board.I2S_DATA
+AUDIO_WORD_PIN = board.I2S_WORD_SELECT
+
 # need additional external pin pulled high to enable neopixels, speaker
-mpinExternalEnable = digitalio.DigitalInOut(board.EXTERNAL_POWER)
-mpinExternalEnable.direction = digitalio.Direction.OUTPUT
-mpinExternalEnable = True
+mpinExtEnable = digitalio.DigitalInOut(board.EXTERNAL_POWER)
+mpinExtEnable.direction = digitalio.Direction.OUTPUT
+mpinExtEnable.value = True
+# time.sleep(0.3)
 
 # SETTING_LED_PIN = board.A1
 # BEAM_LED_PIN = board.A0
@@ -78,9 +84,9 @@ else:
     mnSettingLEDMax = 17
 mnBeamLEDCount = 7
 
-moI2SAudio = audiobusio.I2SOut(
-    board.I2S_BIT_CLOCK, board.I2S_WORD_SELECT, board.I2S_DATA
-)
+# moI2SAudio = audiobusio.I2SOut(board.I2S_DATA, board.I2S_BIT_CLOCK, board.I2S_WORD_SELECT )
+moI2SAudio = audiobusio.I2SOut(AUDIO_CLOCK_PIN, AUDIO_WORD_PIN, AUDIO_DATA_PIN)
+
 moSettingSoundFile = open(SETTING_SND_FILE, "rb")
 moFiringLoopFile = open(FIRELOOP_SND_FILE, "rb")
 moFireWarmFile = open(FIREWARM_SND_FILE, "rb")
@@ -131,11 +137,11 @@ moMixer = audiomixer.Mixer(
 # and MUST have a space immediately after the pound sign - this is some vb6 shit.
 # gtfo with your variable types! this is PYTHON! everything's interpolated!
 # mpinBoardLed = digitalio.DigitalInOut(board.LED)
-# on propmaker, d4 is broken out to edge of board, but this is ALSO USED 
-# as board neopixel! 
-mpinBoardLed = neopixel.NeoPixel(board.D4, 1, brightness=0.3, auto_write=False)
+# on propmaker, d4 is broken out to edge of board, but this is ALSO USED
+# as board neopixel!
+mpinBoardLed = neopixel.NeoPixel(board.NEOPIXEL, 1, brightness=0.3, auto_write=False)
 # mpinBoardLed = neopixel.NeoPixel(board.NEOPIXEL, 1)
-mpinBoardLed.brightness = 0.3
+# mpinBoardLed.brightness = 0.3
 mpinBoardLed.fill((112, 128, 0))
 mpinBoardLed.show()
 
@@ -451,7 +457,6 @@ def StartOverload():
     time.sleep(3)
     moActiveMode = 4
     # play overload warmup sound non-blocking
-    # pass
 
 
 def RunOverload():
