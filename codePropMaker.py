@@ -29,7 +29,7 @@ IS_TYPE_ONE_PHASER = True
 SETTING_LED_PIN = board.TX
 # BEAM_LED_PIN = board.D6
 BEAM_LED_PIN = board.EXTERNAL_NEOPIXELS
-BATTERY_PIN = board.A0
+BATTERY_PIN = board.A1
 BEAM_LASER_PIN = board.D5
 AUDIO_CLOCK_PIN = board.I2S_BIT_CLOCK
 AUDIO_DATA_PIN = board.I2S_DATA
@@ -40,11 +40,6 @@ mpinExtEnable = digitalio.DigitalInOut(board.EXTERNAL_POWER)
 mpinExtEnable.direction = digitalio.Direction.OUTPUT
 mpinExtEnable.value = True
 # time.sleep(0.3)
-
-# SETTING_LED_PIN = board.A1
-# BEAM_LED_PIN = board.A0
-# BATTERY_PIN = board.A2
-# BEAM_LASER_PIN = board.A3
 
 SETTING_SND_FILE = "adjust.wav"
 FIRELOOP_SND_FILE = "firingloop.wav"
@@ -73,6 +68,7 @@ MENUIDX_EXIT = 7
 # number from 0-1 (you'd never want 1, as that'd be ALWAYS OFF
 BEAM_FLICKER_RATE = 0.1
 BEAM_FPS = 90
+SETTING_BRIGHTNESS_DEFAULT = 0.1
 
 # --------
 # current active device settings - do these need to persist across power cycles?
@@ -154,10 +150,10 @@ moLaser.direction = digitalio.Direction.OUTPUT
 # 6-8 status leds in a single row, or 16 split across 2 rows
 # setting lowest value is 0, max is count of setting LEDs?
 moSettingRow = neopixel.NeoPixel(SETTING_LED_PIN, mnSettingLEDMax - 1, brightness=0.1, auto_write=False)
-# moSettingRow.brightness = 0.1
+# moSettingRow.brightness = SETTING_BRIGHTNESS_DEFAULT
 # moSettingRow.auto_write = False
 
-# a laser pointer driven by 5v, with 1 neopixel on each side.
+# a laser pointer driven by gpio pin, with 1 neopixel on each side.
 # these are going to be mounted on a custom pcb with a hole to fit pointer
 moBeamRow = neopixel.NeoPixel(BEAM_LED_PIN, mnBeamLEDCount, brightness=0.5, auto_write=False)
 # moBeamRow.brightness = 0.5
@@ -603,19 +599,19 @@ def StopAutofire():
 def CheckCharging():
     # if charging mode is active, run charging mode
     global moActiveMode
-    # moBatteryRead
+    # global moBatteryRead
     # voltage over threshold means connected to usb
     # anytime usb connected, battery is charging
-    # if (voltage > maximum)
-    # moActiveMode = 2
+    if (GetVoltage() > 4.2)
+        moActiveMode = 2
     # set brightness for settings chain to 0.4
     # to allow brightness for animation
     # if (moSettingRow.brightness != GetSettingBrightnessLevel()):
     #    moSettingRow.brightness = GetSettingBrightnessLevel()
     # change mode to normal and update setting row
-    # elif (moActiveMode == 2)
-    # moActiveMode = 0
-    # DisableCharging()
+    elif (moActiveMode == 2)
+        moActiveMode = 0
+        DisableCharging()
     pass
 
 
@@ -629,7 +625,7 @@ def ShowBattery():
     decCurrentVoltage = min(max(GetVoltage(), 3.2), 4.2)
     # print(decCurrentVoltage)
     nCurrentPower = int(map_range(decCurrentVoltage, 3.2, 4.2, 0.0, 8.0))
-    print(nCurrentPower)
+    # print(nCurrentPower)
     bIsBlinking = False
     for nCount in range(blinkCount):
         if not bIsBlinking:
@@ -677,8 +673,7 @@ def RunChargingMode():
     global IS_TYPE_ONE_PHASER
     nFade = 2
     # change this to pull from a2 pin
-    nBattPercentage = 0
-    # GetBatteryPercent()
+    nBattPercentage = GetBatteryPercent()
     nMaxFrames = mnSettingLEDMax + 4
     nCurrentTime = time.monotonic()
     nLEDTier = 0
@@ -735,9 +730,9 @@ def RunChargingMode():
         mnChargingFrame = 0
 
 
-# def GetBatteryPercent():
-# global BATTERY_PIN
-# return ((6.6 * AnalogIn(BATTERY_PIN)) / 4095)
+def GetBatteryPercent():
+    # global BATTERY_PIN
+    return (GetVoltage() / 4.2)
 
 
 def ShowMenu():
@@ -958,15 +953,16 @@ def GetMenuIndexColor(nIndex):
 def GetSettingBrightnessLevel():
     # this should go 1/2, 1/4, 1/8, 1/12, 1/16, 1/20
     global moUser
+    global SETTING_BRIGHTNESS_DEFAULT
     # return (1 / (moUser.SettingBrightIndex == 0 ? 2 : 4 * moUser.SettingBrightIndex))
     return (
-        0.5 if moUser.SettingBrightIndex == 0 else (1 / (4 * moUser.SettingBrightIndex))
+        SETTING_BRIGHTNESS_DEFAULT if moUser.SettingBrightIndex == 0 else (1 / (4 * moUser.SettingBrightIndex))
     )
 
 
 def GetBeamBrightnessLevel():
     # this should go 1/2, 1/4, 1/8, 1/12, 1/16, 1/20
-    # if 4 is changed to 2, this could be 1, 1/2, 1/6, 1/8, 1/10
+    # if 4 is changed to 2, this could be 1, 1/2, 1/6, 1/8, 1/10    
     global moUser
     # return (1 / (moUser.BeamBrightIndex == 0 ? 1 : 2 * moUser.BeamBrightIndex))
     if moUser.BeamBrightIndex > 4:
