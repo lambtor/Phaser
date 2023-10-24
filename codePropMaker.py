@@ -645,7 +645,7 @@ def GetVoltage():
     # apparently, previous versions used 3.3 as battery reference, but now this is 3.6
     # for this reason, if you use 3.3 with a newer version of firmware,
     # batt % will show 60 when it should be 100. 3.6 * 2 = 7.2
-    return (moBatteryRead.value * 7.2) / 65536
+    return ((moBatteryRead.value * 7.2) / 65536)
 
 
 def map_range(s, a1, a2, b1, b2):
