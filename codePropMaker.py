@@ -28,8 +28,8 @@ IS_TYPE_ONE_PHASER = True
 # propmaker board pinout will differ
 SETTING_LED_PIN = board.TX
 # BEAM_LED_PIN = board.D6
-BEAM_LED_PIN = board.EXTERNAL_NEOPIXELS
-BATTERY_PIN = board.A1
+BEAM_LED_PIN = board.D6
+BATTERY_PIN = board.A0
 BEAM_LASER_PIN = board.D5
 AUDIO_CLOCK_PIN = board.I2S_BIT_CLOCK
 AUDIO_DATA_PIN = board.I2S_DATA
@@ -39,7 +39,12 @@ AUDIO_WORD_PIN = board.I2S_WORD_SELECT
 mpinExtEnable = digitalio.DigitalInOut(board.EXTERNAL_POWER)
 mpinExtEnable.direction = digitalio.Direction.OUTPUT
 mpinExtEnable.value = True
-# time.sleep(0.3)
+time.sleep(0.3)
+
+# SETTING_LED_PIN = board.A1
+# BEAM_LED_PIN = board.A0
+# BATTERY_PIN = board.A2
+# BEAM_LASER_PIN = board.A3
 
 SETTING_SND_FILE = "adjust.wav"
 FIRELOOP_SND_FILE = "firingloop.wav"
@@ -70,7 +75,7 @@ BEAM_FLICKER_RATE = 0.1
 BEAM_FPS = 90
 SETTING_BRIGHTNESS_DEFAULT = 0.1
 
-# --------
+# -------
 # current active device settings - do these need to persist across power cycles?
 mnIntensitySetting = 0
 # this needs to be 1 more than the total number of actual setting LEDs you have
@@ -78,7 +83,7 @@ if IS_TYPE_ONE_PHASER:
     mnSettingLEDMax = 9
 else:
     mnSettingLEDMax = 17
-mnBeamLEDCount = 7
+mnBeamLEDCount = 4
 
 # moI2SAudio = audiobusio.I2SOut(board.I2S_DATA, board.I2S_BIT_CLOCK, board.I2S_WORD_SELECT )
 moI2SAudio = audiobusio.I2SOut(AUDIO_CLOCK_PIN, AUDIO_WORD_PIN, AUDIO_DATA_PIN)
@@ -135,13 +140,14 @@ moMixer = audiomixer.Mixer(
 # mpinBoardLed = digitalio.DigitalInOut(board.LED)
 # on propmaker, d4 is broken out to edge of board, but this is ALSO USED
 # as board neopixel!
-mpinBoardLed = neopixel.NeoPixel(board.NEOPIXEL, 1, brightness=0.3, auto_write=False)
+# mpinBoardLed = neopixel.NeoPixel(board.NEOPIXEL, 1, brightness=0.3, auto_write=False)
 # mpinBoardLed = neopixel.NeoPixel(board.NEOPIXEL, 1)
 # mpinBoardLed.brightness = 0.3
-mpinBoardLed.fill((112, 128, 0))
-mpinBoardLed.show()
+# mpinBoardLed.fill((112, 128, 0))
+# mpinBoardLed.show()
+# time.sleep(0.3)
 
-# cannot drive 3 neopixel lines simultaneously using library.
+# cannot drive 3 neopixel lines simultaneously using library?
 # need to do this with low level code or comment it out.
 # a laser pointer driven by output pin. max 3.3v?
 moLaser = digitalio.DigitalInOut(BEAM_LASER_PIN)
@@ -150,12 +156,12 @@ moLaser.direction = digitalio.Direction.OUTPUT
 # 6-8 status leds in a single row, or 16 split across 2 rows
 # setting lowest value is 0, max is count of setting LEDs?
 moSettingRow = neopixel.NeoPixel(SETTING_LED_PIN, mnSettingLEDMax - 1, brightness=0.1, auto_write=False)
-# moSettingRow.brightness = SETTING_BRIGHTNESS_DEFAULT
+moSettingRow.brightness = SETTING_BRIGHTNESS_DEFAULT
 # moSettingRow.auto_write = False
-
-# a laser pointer driven by gpio pin, with 1 neopixel on each side.
+# time.sleep(0.3)
+# a laser pointer driven by 5v, with 1 neopixel on each side.
 # these are going to be mounted on a custom pcb with a hole to fit pointer
-moBeamRow = neopixel.NeoPixel(BEAM_LED_PIN, mnBeamLEDCount, brightness=0.5, auto_write=False)
+moBeamRow = neopixel.NeoPixel(BEAM_LED_PIN, 4, brightness=0.5, auto_write=False)
 # moBeamRow.brightness = 0.5
 # moBeamRow.auto_write = False
 
@@ -223,6 +229,8 @@ def SettingDecrease(nAmount):
     global mnIntensitySetting
     if mnIntensitySetting > 0:
         mnIntensitySetting -= nAmount
+	else:
+        ShowBattery()
     UpdateIntensity()
 
 
@@ -362,12 +370,12 @@ def StartFiring(bIsInit):
         # nRand = int(math.modf(time.monotonic())[0] * 10)
         if nRand < (BEAM_FLICKER_RATE * 10):
             moBeamRow.fill(oColorAlt)
-            moBeamRow.show()
+            moBeamRow.write()
             moLaser.value = False
         else:
             moLaser.value = True
             moBeamRow.fill(oColor)
-            moBeamRow.show()
+            moBeamRow.write()
         mnWarmLastTime = time.monotonic()
     decTimeRef = time.monotonic() - mdecStartFiringTime
     # warming over, set isFiring flag on to hand over to that animation
@@ -404,12 +412,12 @@ def RunFiring(bInitLoop):
         if nRand < (BEAM_FLICKER_RATE * 10):
             # moBeamRow.fill(moRGBBlack)
             moBeamRow.fill(MenuOptions.FreqSup[moUser.Frequency])
-            moBeamRow.show()
+            moBeamRow.write()
             moLaser.value = False
         else:
             # moBeamRow.fill(MenuOptions.Frequency[moUser.Frequency])
             moBeamRow.fill(moRGBRed)
-            moBeamRow.show()
+            moBeamRow.write()
             moLaser.value = True
         mdFiringLastTime = time.monotonic()
 
@@ -439,7 +447,7 @@ def StopFiring():
     mbIsFiring = False
     mbIsWarming = False
     moBeamRow.fill(moRGBBlack)
-    moBeamRow.show()
+    moBeamRow.write()
     moLaser.value = False
 
 
@@ -449,7 +457,7 @@ def StartOverload():
     global moRGBRed
     global mnOverFrameSpeed
     moSettingRow.fill(moRGBRed)
-    moSettingRow.show()
+    moSettingRow.write()
     time.sleep(3)
     moActiveMode = 4
     # play overload warmup sound non-blocking
@@ -515,7 +523,7 @@ def StopOverload():
     global moSettingRow
     moActiveMode = 0
     moSettingRow.fill(moRGBBlack)
-    moSettingRow.show()
+    moSettingRow.write()
     time.sleep(0.2)
     # play wind-down sound?
     UpdateIntensity()
@@ -559,7 +567,7 @@ def RunAutofire():
             UpdateIntensity()
         else:
             moSettingRow.fill(moRGBBlack)
-            moSettingRow.show()
+            moSettingRow.write()
         mbAutoFlashing = not mbAutoFlashing
         mdecAutoFlashTime = time.monotonic()
 
@@ -590,7 +598,7 @@ def StopAutofire():
     global moSettingRow
     moActiveMode = 0
     moSettingRow.fill(moRGBBlack)
-    moSettingRow.show()
+    moSettingRow.write()
     time.sleep(0.3)
     # play cancel sound?
     UpdateIntensity()
@@ -599,19 +607,19 @@ def StopAutofire():
 def CheckCharging():
     # if charging mode is active, run charging mode
     global moActiveMode
-    # global moBatteryRead
+    # moBatteryRead
     # voltage over threshold means connected to usb
     # anytime usb connected, battery is charging
-    if (GetVoltage() > 4.2)
-        moActiveMode = 2
+    # if (voltage > maximum)
+    # moActiveMode = 2
     # set brightness for settings chain to 0.4
     # to allow brightness for animation
     # if (moSettingRow.brightness != GetSettingBrightnessLevel()):
     #    moSettingRow.brightness = GetSettingBrightnessLevel()
     # change mode to normal and update setting row
-    elif (moActiveMode == 2)
-        moActiveMode = 0
-        DisableCharging()
+    # elif (moActiveMode == 2)
+    # moActiveMode = 0
+    # DisableCharging()
     pass
 
 
@@ -625,7 +633,7 @@ def ShowBattery():
     decCurrentVoltage = min(max(GetVoltage(), 3.2), 4.2)
     # print(decCurrentVoltage)
     nCurrentPower = int(map_range(decCurrentVoltage, 3.2, 4.2, 0.0, 8.0))
-    # print(nCurrentPower)
+    print(nCurrentPower)
     bIsBlinking = False
     for nCount in range(blinkCount):
         if not bIsBlinking:
@@ -645,7 +653,7 @@ def GetVoltage():
     # apparently, previous versions used 3.3 as battery reference, but now this is 3.6
     # for this reason, if you use 3.3 with a newer version of firmware,
     # batt % will show 60 when it should be 100. 3.6 * 2 = 7.2
-    return ((moBatteryRead.value * 7.2) / 65536)
+    return (moBatteryRead.value * 7.2) / 65536
 
 
 def map_range(s, a1, a2, b1, b2):
@@ -657,7 +665,7 @@ def DisableCharging():
     global moRGBBlack
     moSettingRow.brightness = GetSettingBrightnessLevel()
     moSettingRow.fill(moRGBBlack)
-    moSettingRow.show()
+    moSettingRow.write()
     UpdateIntensity()
 
 
@@ -673,7 +681,8 @@ def RunChargingMode():
     global IS_TYPE_ONE_PHASER
     nFade = 2
     # change this to pull from a2 pin
-    nBattPercentage = GetBatteryPercent()
+    nBattPercentage = 0
+    # GetBatteryPercent()
     nMaxFrames = mnSettingLEDMax + 4
     nCurrentTime = time.monotonic()
     nLEDTier = 0
@@ -722,7 +731,7 @@ def RunChargingMode():
                     if not IS_TYPE_ONE_PHASER:
                         moSettingRow[nIterator3 + 8] = (0, 0, moRGBStrength)
 
-    moSettingRow.show()
+    moSettingRow.write()
     mnChargingLastTime = nCurrentTime
     mnChargingFrame += 1
     # print(mnChargingFrame)
@@ -730,9 +739,9 @@ def RunChargingMode():
         mnChargingFrame = 0
 
 
-def GetBatteryPercent():
-    # global BATTERY_PIN
-    return (GetVoltage() / 4.2)
+# def GetBatteryPercent():
+# global BATTERY_PIN
+# return ((6.6 * AnalogIn(BATTERY_PIN)) / 4095)
 
 
 def ShowMenu():
@@ -755,7 +764,7 @@ def ShowMenu():
     moSettingRow[MENUIDX_EXIT] = MenuOptions.Exit
     moSettingRow.brightness = GetSettingBrightnessLevel()
     # highlight current hovered option
-    moSettingRow.show()
+    moSettingRow.write()
     mbMenuBtn1Clear = False
     mbMenuBtn2Clear = False
     moActiveMode = 1
@@ -778,7 +787,7 @@ def RunMenu():
             moSettingRow[mnMenuIndex] = GetMenuIndexColor(mnMenuIndex)
         else:
             moSettingRow[mnMenuIndex] = moRGBBlack
-        moSettingRow.show()
+        moSettingRow.write()
         mbMenuIndexLEDOff = not mbMenuIndexLEDOff
         mdecMenuLastFlash = time.monotonic()
 
@@ -813,7 +822,7 @@ def NavMenu(nIndex):
             moSettingRow[nInt] = moRGBBlack
     # moSettingRow[5] = moRGBBlack
     moSettingRow[MENUIDX_EXIT] = MenuOptions.Exit
-    moSettingRow.show()
+    moSettingRow.write()
     time.sleep(0.1)
     # moI2SAudio.play(moSettingSnd)
     PlaySound(moSettingSnd)
@@ -919,19 +928,19 @@ def AnimateSettingChange(oColorOld, oColorNew):
     global moSettingSnd
     # this is blocking - it NEEDS to be for stability
     moSettingRow.fill(moRGBBlack)
-    moSettingRow.show()
+    moSettingRow.write()
     time.sleep(0.1)
     moSettingRow[mnMenuIndex] = oColorOld
-    moSettingRow.show()
+    moSettingRow.write()
     time.sleep(0.2)
     moSettingRow[mnMenuIndex] = oColorNew
-    moSettingRow.show()
+    moSettingRow.write()
     time.sleep(0.5)
     moSettingRow.fill(moRGBBlack)
-    moSettingRow.show()
+    moSettingRow.write()
     time.sleep(0.2)
     moSettingRow[mnMenuIndex] = oColorNew
-    moSettingRow.show()
+    moSettingRow.write()
     # moI2SAudio.play(moSettingSnd)
     time.sleep(0.1)
 
@@ -962,7 +971,7 @@ def GetSettingBrightnessLevel():
 
 def GetBeamBrightnessLevel():
     # this should go 1/2, 1/4, 1/8, 1/12, 1/16, 1/20
-    # if 4 is changed to 2, this could be 1, 1/2, 1/6, 1/8, 1/10    
+    # if 4 is changed to 2, this could be 1, 1/2, 1/6, 1/8, 1/10
     global moUser
     # return (1 / (moUser.BeamBrightIndex == 0 ? 1 : 2 * moUser.BeamBrightIndex))
     if moUser.BeamBrightIndex > 4:
