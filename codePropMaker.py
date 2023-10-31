@@ -229,8 +229,9 @@ def SettingDecrease(nAmount):
     global mnIntensitySetting
     if mnIntensitySetting > 0:
         mnIntensitySetting -= nAmount
-	else:
+    else:
         ShowBattery()
+        pass
     UpdateIntensity()
 
 
@@ -631,13 +632,13 @@ def ShowBattery():
     blinkCount = 10
     # print(GetVoltage())
     decCurrentVoltage = min(max(GetVoltage(), 3.2), 4.2)
-    # print(decCurrentVoltage)
+    print(decCurrentVoltage)
     nCurrentPower = int(map_range(decCurrentVoltage, 3.2, 4.2, 0.0, 8.0))
-    print(nCurrentPower)
+    print("lt " + str(nCurrentPower))
     bIsBlinking = False
     for nCount in range(blinkCount):
         if not bIsBlinking:
-            for nSettingLED in range(nCurrentPower):
+            for nSettingLED in range(nCurrentPower + 1):
                 moSettingRow[nSettingLED] = moRGBBattery
         else:
             moSettingRow.fill(moRGBBlack)
@@ -653,7 +654,13 @@ def GetVoltage():
     # apparently, previous versions used 3.3 as battery reference, but now this is 3.6
     # for this reason, if you use 3.3 with a newer version of firmware,
     # batt % will show 60 when it should be 100. 3.6 * 2 = 7.2
-    return (moBatteryRead.value * 7.2) / 65536
+    decCurrentVoltage = min(max((moBatteryRead.value * 2), 0.0), 65536.0)
+    #print(decCurrentVoltage)
+    decCurrentVoltage = decCurrentVoltage / 65536
+    # print((moBatteryRead.value) / 65536)
+    decCurrentVoltage = map_range(decCurrentVoltage, 0.0, 65536.0, 3.2, 4.2)
+    # print(decCurrentVoltage)
+    return decCurrentVoltage
 
 
 def map_range(s, a1, a2, b1, b2):
