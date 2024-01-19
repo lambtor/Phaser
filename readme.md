@@ -1,6 +1,6 @@
 Purpose of this project is to code a phaser prop from star trek TNG / DS9 / VOY / LD.<br>
 This will try to support both the 2 row, 16 intensity setting type 2 phaser and the 1 row, 8 intensity setting type 1.<br>
-This is coded in circuitpython and initially intended to use the adafruit rp2040 board with a battery backpack. Settings and beam neopixels, buttons used will be on a custom designed PCB.
+This is coded in circuitpython and meant to be run on an adafruit rp2040 propmaker board with a custom PCB attached. Settings and beam neopixels, buttons used will be on a custom designed PCB.
 <br><br>
 <strong>Project scope / intended features:</strong><br>
 <ol>
@@ -37,6 +37,6 @@ To-do:
 modify flicker behavior to instead randomly set 2 beam chain pixel colors
 </li>
 <li>
-flash battery level when setting down button is held for 2s and intensity already at minimum (in mariner mode)
+flash battery level when setting down button is held for 2s and intensity already at minimum (in Mariner mode)
 </li>
 </ul>
