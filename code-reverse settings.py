@@ -610,7 +610,10 @@ def ShowBattery():
     for nCount in range(blinkCount):
         if (not bIsBlinking):
             for nSettingLED in range(nCurrentPower):
-                moSettingRow[nSettingLED] = moRGBBattery
+                nPolarityPower = 7 - nSettingLED
+                # use normal version if LEDs wired 0-7 left > right
+                # moSettingRow[nSettingLED] = moRGBBattery
+                moSettingRow[nPolarityPower] = moRGBBattery
         else:
             moSettingRow.fill(moRGBBlack)
         moSettingRow.write()
@@ -720,14 +723,18 @@ def ShowMenu():
     global mbMenuBtn1Clear
     global mbMenuBtn2Clear
     global mnMenuIndex
+    nIndxSettingMax = len(moSettingRow) - 1
 
-    for nInt in range(len(moSettingRow) - 1):
+    for nInt in range(nIndxSettingMax):
+        nIdxCurrMenu = nIndxSettingMax - nInt
         if nInt == mnMenuIndex:
-            moSettingRow[nInt] = GetMenuIndexColor(mnMenuIndex)
+            moSettingRow[nIdxCurrMenu] = GetMenuIndexColor(mnMenuIndex)
         else:
-            moSettingRow[nInt] = moRGBBlack
+            moSettingRow[nIdxCurrMenu] = moRGBBlack
     # moSettingRow[5] = moRGBBlack
-    moSettingRow[MENUIDX_EXIT] = MenuOptions.Exit
+    nIdxCurrMenu = nIndxSettingMax - MENUIDX_EXIT
+    # moSettingRow[MENUIDX_EXIT] = MenuOptions.Exit
+    moSettingRow[nIdxCurrMenu] = MenuOptions.Exit
     moSettingRow.brightness = GetSettingBrightnessLevel()
     # highlight current hovered option
     moSettingRow.show()
@@ -744,14 +751,17 @@ def RunMenu():
     global moSettingRow
     global moRGBBlack
     global moActiveMode
+    nIdxPol = (len(moSettingRow) - 1) - mnMenuIndex
     if (moActiveMode != 1):
         return
 
     if (time.monotonic() - mdecMenuLastFlash > mdecMenuFlashDelay):
         if mbMenuIndexLEDOff is True:
-            moSettingRow[mnMenuIndex] = GetMenuIndexColor(mnMenuIndex)
+            # moSettingRow[mnMenuIndex] = GetMenuIndexColor(mnMenuIndex)
+            moSettingRow[nIdxPol] = GetMenuIndexColor(mnMenuIndex)
         else:
-            moSettingRow[mnMenuIndex] = moRGBBlack
+            # moSettingRow[mnMenuIndex] = moRGBBlack
+            moSettingRow[nIdxPol] = moRGBBlack
         moSettingRow.show()
         mbMenuIndexLEDOff = not mbMenuIndexLEDOff
         mdecMenuLastFlash = time.monotonic()
@@ -767,6 +777,7 @@ def NavMenu(nIndex):
     global moSettingSnd
     global moSettingRow
     global moRGBBlack
+    nIdxPol = (len(moSettingRow) - 1) - mnMenuIndex
 
     # undo previous "highlight"
     # moSettingRow[mnMenuIndex] = GetMenuIndexColor(mnMenuIndex)
@@ -780,18 +791,29 @@ def NavMenu(nIndex):
 
     for nInt in range(len(moSettingRow) - 1):
         if nInt == mnMenuIndex:
-            moSettingRow[nInt] = GetMenuIndexColor(mnMenuIndex)
+            # moSettingRow[nInt] = GetMenuIndexColor(mnMenuIndex)
+            moSettingRow[nIdxPol] = GetMenuIndexColor(mnMenuIndex)
         else:
-            moSettingRow[nInt] = moRGBBlack
+            # moSettingRow[nInt] = moRGBBlack
+            moSettingRow[nIdxPol] = moRGBBlack
     # moSettingRow[5] = moRGBBlack
-    moSettingRow[MENUIDX_EXIT] = MenuOptions.Exit
+    # moSettingRow[MENUIDX_EXIT] = MenuOptions.Exit
+    nIdxPol = (len(moSettingRow) - 1) - MENUIDX_EXIT
+    moSettingRow[nIdxPol] = MenuOptions.Exit
     moSettingRow.show()
     time.sleep(0.1)
     # moI2SAudio.play(moSettingSnd)
     PlaySound(moSettingSnd)
 
 def UpdateSleepMemory(nMemIndex, oMemValue):
-    alarm.sleep_memory[nMemIndex] = oMemValue
+    global moUser
+    try:
+        alarm.sleep_memory[nMemIndex] = oMemValue
+
+    except:
+        pass
+
+    return
 
 def UpdateMenuSetting():
     global mnMenuIndex
@@ -874,20 +896,24 @@ def AnimateSettingChange(oColorOld, oColorNew):
     global moRGBBlack
     global moI2SAudio
     global moSettingSnd
+    nIdxPol = (len(moSettingRow) - 1) - mnMenuIndex
     # this is blocking - it NEEDS to be for stability
     moSettingRow.fill(moRGBBlack)
     moSettingRow.show()
     time.sleep(0.1)
-    moSettingRow[mnMenuIndex] = oColorOld
+    # moSettingRow[mnMenuIndex] = oColorOld
+    moSettingRow[nIdxPol] = oColorOld
     moSettingRow.show()
     time.sleep(0.2)
-    moSettingRow[mnMenuIndex] = oColorNew
+    # moSettingRow[mnMenuIndex] = oColorNew
+    moSettingRow[nIdxPol] = oColorNew
     moSettingRow.show()
     time.sleep(0.5)
     moSettingRow.fill(moRGBBlack)
     moSettingRow.show()
     time.sleep(0.2)
-    moSettingRow[mnMenuIndex] = oColorNew
+    # moSettingRow[mnMenuIndex] = oColorNew
+    moSettingRow[nIdxPol] = oColorNew
     moSettingRow.show()
     # moI2SAudio.play(moSettingSnd)
     time.sleep(0.1)
